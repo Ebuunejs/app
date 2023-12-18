@@ -1,3 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@200;400;500;700;900&display=swap');
+@import "bootstrap/dist/css/bootstrap.min.css";
+
+* {
+  font-family: 'Poppins', sans-serif;
+}
+
 .App {
   text-align: center;
 }
@@ -24,6 +31,15 @@
   color: white;
 }
 
+.bodyViewPort{
+  display: flex;
+  align-items: left;
+}
+
+.containerViewPort{
+  display: flex;
+}
+
 .App-link {
   color: #61dafb;
 }
@@ -34,5 +50,332 @@
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+.table-row td {
+  display: flex;
+  align-items: center;
+  
+}
+.table-row  {
+  display: flex;
+  justify-content: space-between;
+}
+
+* {
+  font-family: 'Poppins', sans-serif;
+}
+
+.header {
+  font-size: 25px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+/*
+.container {
+  margin: 0 auto;
+  max-width: 80%;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+}
+*/
+
+.card {
+  font-size: 15px;
+  width: 270px;
+  box-shadow: 1px 1px 10px 1px;
+  padding: 5px;
+  border-radius: 10px;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+}
+
+.card-image {
+  height: 200px;
+  width: 100%;
+  object-fit: cover;
+}
+
+.barbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 30px;
+  justify-content: center;
+}
+
+.time-slot-card {
+  display: flex;
+  border: 1px black solid;
+  justify-content: space-between;
+  padding: 10px;
+  width: 130px;
+  cursor: pointer;
+}
+
+.time-slots {
+  display: flex;
+  flex-wrap: wrap;
+  width: 37%;
+  height: 400px;
+  gap: 4px;
+  justify-content: center;
+  overflow-y: scroll;
+}
+
+
+.reservation-section {
+  width: 85%;
+  height: 400px;
+  overflow-y: scroll;
+}
+
+.breadcrumb {
+  color: black;
+  text-decoration: none;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.breadcrumb.active { 
+  font-weight: 700;
+}
+
+.friseur-headline {
+  text-transform: uppercase;
+  font-weight: 500;
+  font-size: 30px;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: 2px;
+  text-align: center;
+  width: 100%;
+}
+
+.friseur {
+  padding: 0 100px;
+}
+
+.hairstyles {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  width: 60%;
+}
+
+#booking-steps {
+  width: 40%;
+  border: 1px solid black;
+  max-height: 350px;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.steps-list {
+  font-family: 'Poppins', sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: "10px";
+  position: absolute;
+  width: 12%;
+  align-items: flex-end;
+  right: 30px;
+}
+
+.steps-list > div {
+  border: 1px black solid;
+  position: fixed;
+  border-radius: 10px;
+  padding: 15px 25px;
+  background-color: beige;
+  box-shadow: 1px 1px 1px 1px;
+}
+
+.steps-list > div > h4 {
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+
+.steps-list .list{
+    font-size: "40px";
+     margin-top: 10px; 
+}
+
+.card-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calendar {
+  font-family: 'Poppins', sans-serif;
+  font-size: 20px;  
+  width: 88%;
+  margin-top: 100px;
+  z-index: 100;
+}
+
+.btn {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500
+}
+
+.time-slot {
+  cursor: pointer;
+}
+
+.time-slot:hover {
+  background-color: aliceblue;
+}
+
+.order-page {
+  padding: 0 100px;
+}
+
+#complete-order-ep {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 65%;
+  padding: 15px;
+  border: 1px solid black;
+  border-radius: 10px;
+  margin-top: 40px;
+}
+
+.order-ep {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.order-ep > h4 { 
+  font-family: 'Poppins' sans-serif;
+  font-size: 26px;
+}
+
+#complete-order-ep > div {
+  width: 140%;
+}
+
+#complete-order-ep > div > input {
+  width: 100%;
+}
+
+#complete-order-button {
+  height: 50%;
+  margin-top: 15px;
+}
+
+.guest-order {
+  width: 65%;
+  margin: 70px 0;
+}
+
+.guest-order > form > h4 {
+  font-family: 'Poppins' sans-serif;
+  font-size: 26px;
+}
+
+#booking-steps {
+  width: 30%;
+  font-family: 'Poppins' sans-serif;  
+}
+
+#booking-steps div span  {
+  font-weight: 600;
+}
+
+.services {
+  display: flex;
+  
+}
+
+@media screen and (max-width: 992px) {
+  .services {
+    align-items: center;
+    flex-direction: column-reverse;
+    gap: 50px;
+  }
+
+  .friseur {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #booking-steps {
+    width: 80%;
+  }
+
+  .hairstyles {
+    width: 100%;
+  }
+
+  .hairstyle-card.card {
+    width: 100%;
+  }
+
+  .card-img-top {
+    width: 100%;
+  }
+
+  .calendar form{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .order-ep {
+    flex-direction: column-reverse;
+    align-items: center;
+  }
+
+  #complete-order-ep {
+    flex-direction: column;
+  }
+
+  h4 {
+    text-align: center;
+  }
+
+  #complete-order-ep div {
+    width: 80%;
+  }
+
+  .guest-order {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .guest-order form {
+    width: 65%;
+  }
+
+  .guest-order form div {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+}
+
+
+@media screen and (max-width: 768px) {
+
+  #complete-order-ep {
+    width: 100%;
+  }
+
+  .guest-order form {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 630px) {
+  
+  .order-page {
+    padding: 0 30px;
   }
 }
