@@ -1,0 +1,9 @@
+
+  a.page-link{
+    color: rgb(97, 169, 193);
+  }
+
+  .pagination{
+    --bs-pagination-active-bg: rgb(97, 169, 193) !important;
+    --bs-pagination-active-border-color:rgb(97, 169, 193) !important;
+  }

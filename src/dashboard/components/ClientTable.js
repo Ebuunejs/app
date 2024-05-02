@@ -18,35 +18,51 @@ const ClientTable = () => {
     const navigate = useNavigate();
     //const BASE_URL = "http://4pixels.ch/friseur/api"; 
     const [users, setUsers] = useState([]);
+    const [info, setInfo] = useState(null)
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(info?.last_page);
 
-    const fetchUsers = async () => {
+    const fetchUsers = async (url) => {
         try {
-            const clientArray = [];
-            const response = await axios.get(`${BASE_URL}/users`);
-            //console.log(response)
-                for(let i=0;i<response.data.length;i++){
-                    const index=response.data[i]['addresses_id'];
-                    const response2 = await axios.get(`${BASE_URL}/addresses/${index}`);
-                    //console.log("Response 2: ",response2);
-                    clientArray[i]={
-                                    id:         response.data[i]['id'],
-                                    name:       response.data[i]['name'],
-                                    surname:    response.data[i]['surname'],
-                                    country:    response2.data['country'],
-                                    street:     response2.data['street'],
-                                    city:       response2.data['city'],
-                                    plz:        response2.data['plz'],
-                                    email:      response.data[i]['email'],
-                                    phone:      response.data[i]['phone']
-                                    }
-                }
-                setUsers(clientArray);
-                console.log("Array: ",clientArray);
-        } catch (e) {
-            console.error(e)
-        }
-    }
+            const response = await axios.get(url);
+            if (response.status === 200) {
+                setInfo(response.data);
+                setTotalPages(response.data.last_page);
+    
+                if (response.data.data.length > 0) {
+                    const clientArray = [];
 
+                    for (let i = 0; i < response.data.data.length; i++) {
+                        const userData = response.data.data[i];
+                        const index = userData['addresses_id'];
+    
+                        if (index != null) {
+                            const response2 = await axios.get(`${BASE_URL}/addresses/${index}`);
+                            const userObject = {
+                                id: userData['id'],
+                                name: userData['name'],
+                                surname: userData['surname'],
+                                country: response2.data['country'],
+                                street: response2.data['street'],
+                                city: response2.data['city'],
+                                plz: response2.data['plz'],
+                                email: userData['email'],
+                                phone: userData['phone']
+                            };
+                            clientArray.push(userObject);
+                        }
+                    }
+                    setUsers(clientArray);
+                    console.log("Array: ", clientArray," page ", page);
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+    
+
+    
     const deleteCustomer = async (index)=>{
         try {
             if(window.confirm("Wollen Sie sicher den Kunden löschen")){
@@ -75,9 +91,13 @@ const ClientTable = () => {
     }
 
     useEffect(() => {
-        fetchUsers();
-    }, [])
+        fetchUsers(`${BASE_URL}/users?page=${page}`);
+    }, [page])
     
+    function handlePagination(){
+        fetchUsers(`${BASE_URL}/users?page=${page}`);
+    }
+
     return <>
     <Table responsive>
         <thead>
@@ -95,7 +115,7 @@ const ClientTable = () => {
             </tr>
         </thead>
         <tbody>
-        {
+        {   users.length > 0 &&
                 users.map((curUser,idx) => {
                     return (
                         <tr key={idx}>
@@ -110,21 +130,19 @@ const ClientTable = () => {
                             <td>{curUser.phone}</td>
                             <td> 
                                 <div className="d-flex justify-content-between">
-                                    <Button style={{backgroundColor:"#7DB561",borderRadius:"50%",border:"none"}}  onClick={()=>updateUser(curUser.id)}><FontAwesomeIcon icon={faPencil} />
-                                    </Button>
+                                    <Button style={{backgroundColor:"#7DB561",borderRadius:"50%",border:"none"}}  onClick={()=>updateUser(curUser.id)}><FontAwesomeIcon icon={faPencil} /></Button>
                                     <Button style={{backgroundColor:"#BD5450",borderRadius:"50%",border:"none"}} onClick={()=>deleteCustomer(curUser.id)}><FontAwesomeIcon icon={faTrash} /></Button>
                                 </div>
                             </td>
                         </tr>
                     )
                 })
-
-            }
+        }
         </tbody>
     </Table>
-    <div className="d-flex justify-content-center">
-         <ClientTablePagination/>
-    </div>
+        <div className="d-flex justify-content-center">
+            <ClientTablePagination  info={info} call={handlePagination} page={page} setPage={setPage} totalPages={totalPages}/> 
+        </div>
     
     </>
 }

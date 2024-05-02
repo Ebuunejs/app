@@ -1,8 +1,11 @@
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import React,{useEffect, useState} from "react";
-import {Container} from "react-bootstrap";
 import { Calendar, momentLocalizer }from 'react-big-calendar';
+import { Container, Button} from "react-bootstrap";
+import { faPlus } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import AddTermin from '../components/AddTermin';
 //import ReactTimeslotCalendar from 'react-timeslot-calendar';
 import moment from 'moment';
 //  import events from "./events";
@@ -16,9 +19,11 @@ import config from '../config';
 const BASE_URL = config.backendUrl;
 const localizer = momentLocalizer(moment);
 
-
 function PortalDashboard() {  
     const [timeSlot, setTimeSlots] = useState([]);
+    const [show, setShow] = useState(false);
+    const [changed, setChanged] = useState(false);
+    const [guest, setGuest] = useState({});
 
     const getTimeSlots = async () => {
         try {
@@ -58,6 +63,15 @@ function PortalDashboard() {
         }
     }
 
+    function addTermin(){
+        try {
+            setShow(!show);
+            
+        } catch (e) {
+            console.error(e)
+        }
+    }
+
     const addTimeSlot = (initialTimeSlot) => {
         //setTimeSlots([...timeSlot, initialTimeSlot]);
         setTimeSlots(initialTimeSlot);
@@ -71,6 +85,9 @@ function PortalDashboard() {
         <React.Fragment>
             <Container className='py-5'>
                 <h3 className='fw-normal'>Dashboard</h3>
+                <div className="d-flex flex-row-reverse">
+                    <Button style={{backgroundColor:"#7DB561",borderRadius:"50%",border:"none"}} onClick={addTermin}><FontAwesomeIcon icon={faPlus} /> </Button>
+                </div>
                 <Calendar
                     localizer={localizer}
                     events={timeSlot}
@@ -79,6 +96,7 @@ function PortalDashboard() {
                     style={{ height: 500 }}
                 />   
             </Container>
+            <AddTermin show={show} setShow={setShow} changed={changed} setChanged={setChanged} guest={guest} setGuest={setGuest}/>
         </React.Fragment>
         );
       };

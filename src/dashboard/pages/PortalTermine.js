@@ -197,7 +197,7 @@ const PortalTermine = () => {
                                     <tr key={idx}>
                                         <td>{curUser.id}</td>
                                         <td>{curUser.name}</td>
-                                        <td>{curUser.vorname}</td>
+                                        <td>{curUser.surname}</td>
                                         <td>{curUser.email}</td>
                                         <td>{curUser.phone}</td>
                                         <td> 

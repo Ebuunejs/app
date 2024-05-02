@@ -7,6 +7,7 @@ import { faPencil } from "@fortawesome/free-solid-svg-icons";
 import { faTrash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import AddEmployee from './AddEmployee';
+import ClientTablePagination from './ClientTablePagination';
 // In anderen Dateien
 import config from '../config';
 // Verwendung der backendUrl
@@ -17,14 +18,19 @@ const Employee = ({changed,setChanged,employee,setEmployee}) => {
     const [show, setShow] = useState(false);
     const [index, setIndex] = useState();
     const [update, setUpdate] = useState(false);
+    const [info, setInfo] = useState(null)
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(info?.last_page);
 
-    const fetchEmployees = async () => {
+    const  fetchEmployees = (url)=>{
         try {
-            console.log("fetch Employee")
-            const response = await axios.get(`${BASE_URL}/employees`);
-            //console.log(response)
-            if (response.status === 200) {
-                setEmployee(response.data);
+            if(url){
+                axios.get(url)
+                .then((response) => {
+                    setEmployee(response.data.data);
+                    setInfo(response.data);
+                    setTotalPages(response.data.last_page);
+                })
             }
         } catch (e) {
             console.error(e)
@@ -37,8 +43,7 @@ const Employee = ({changed,setChanged,employee,setEmployee}) => {
                 const API_URL =  `${BASE_URL}/employees/${index}`;
                 const response = await axios.delete(API_URL);
                 console.log(response)
-                if (response.status === 200) {
-                    
+                if (response.status === 200) { 
                     console.log("jetzt löschen");
                 }
                 fetchEmployees(BASE_URL);
@@ -51,9 +56,8 @@ const Employee = ({changed,setChanged,employee,setEmployee}) => {
 
     const updateEmployee = (index)=>{
         try {
-            console.log("update: ",update,"show: ",show)
             setIndex(index);
-            setUpdate(true);
+            setUpdate(!update);
             setShow(!show);
             console.log("updated: index",index," employee: ",employee," update: ",update,"show: ",show);
         } catch (e) {
@@ -62,8 +66,13 @@ const Employee = ({changed,setChanged,employee,setEmployee}) => {
     }
 
     useEffect(() => {
-        fetchEmployees();
-    }, [changed])
+        fetchEmployees(`${BASE_URL}/employees?page=${page}`);
+    }, [changed,index,page])
+
+    function handlePagination(){
+        fetchEmployees(`${BASE_URL}/employees?page=${page}`);
+    }
+
 //style={{display:"flex",flexDirection:"column",justifyContent:"space between" }}
     return (
         <React.Fragment>
@@ -84,7 +93,7 @@ const Employee = ({changed,setChanged,employee,setEmployee}) => {
                                 employee.map((curUser,idx) => {
                                     return (
                                         <tr key={idx} >
-                                            <td><Image src={imageURL} style={{border:"none", borderRadius:"50%",height:"50px"}}/></td>
+                                            <td><Image src={`http://127.0.0.1:8000/api/images/employees/${curUser.photo}`  || imageURL } style={{border:"none", borderRadius:"50%",height:"50px"}} alt="Fotoname" /></td>
                                             <td>{curUser.name}</td>
                                             <td>{curUser.surname}</td>
                                             <td>{curUser.email}</td>
@@ -102,8 +111,11 @@ const Employee = ({changed,setChanged,employee,setEmployee}) => {
                         </tbody>
             </Table>    
             </Container>
-            <AddEmployee show={show} setShow={setShow} changed={changed} setChanged={setChanged} employee={employee} index = {index} update={update} 
+            <AddEmployee show={show} setShow={setShow} changed={changed} setChanged={setChanged} index = {index} update={update} 
                         setUpdate={setUpdate}/>
+              <div className="d-flex justify-content-center">
+                    <ClientTablePagination  info={info} call={handlePagination} page={page} setPage={setPage} totalPages={totalPages}/> 
+             </div>
         </React.Fragment>
     )
 }

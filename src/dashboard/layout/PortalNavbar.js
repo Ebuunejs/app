@@ -29,9 +29,10 @@ function PortalNavbar() {
                         navbarScroll
                     >
                         <Nav.Link href="dashboard">Home</Nav.Link>
+                   {/*  <Nav.Link href="termine">Termine</Nav.Link> */}
                         <Nav.Link href="user">Kunden</Nav.Link>
                         <Nav.Link href="statistik">Statistik</Nav.Link>
-                        <Nav.Link href="termine">Termine</Nav.Link>
+                        
                         
                         <NavDropdown title="Geschäft" id="navbarScrollingDropdown">
                             <NavDropdown.Item href="employee">Mitarbeiter</NavDropdown.Item>
@@ -40,7 +41,6 @@ function PortalNavbar() {
                             <NavDropdown.Divider />
                             <NavDropdown.Item href="#">Einstellungen</NavDropdown.Item>
                         </NavDropdown>
-
                     </Nav>
                     {/*
                     

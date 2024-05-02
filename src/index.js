@@ -1,6 +1,6 @@
 import * as React from "react";
 //import ReactDOM from 'react-dom/client';
-import {  BrowserRouter, Route, Routes,Navigate } from "react-router-dom";
+import {  BrowserRouter, Route, Routes } from "react-router-dom";
 import "./index.css";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import reportWebVitals from './reportWebVitals';
@@ -13,7 +13,6 @@ import PortalUser from './dashboard/pages/PortalKunden';
 import PortalService from './dashboard/pages/PortalService';
 import Company from './dashboard/pages/PortalCompany';
 import PortalEmployee from './dashboard/pages/PortalEmployee';
-import PortalTermine from './dashboard/pages/PortalTermine';
 import UpdateKunde from './dashboard/components/UpdateKunde';
 import PrivateRoute from './dashboard/util/PrivateRoute';
 import PortalStatistik from './dashboard/pages/PortalStatistik'
@@ -39,7 +38,7 @@ root.render(
           <Route index element={<PortalHome />} />
           <Route path="user" element={<PortalUser />} />
           <Route path="statistik" element={<PortalStatistik />} />
-          <Route path="termine" element={<PortalTermine />} />
+   
           <Route path="employee" element={<PortalEmployee />} />
           <Route path="company" element={<Company />} />
           <Route path="service" element={<PortalService />} />
@@ -62,3 +61,5 @@ root.render(
 // to log results (for example: reportWebVitals(console.log))
 // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
+
+/*   <Route path="termine" element={<PortalTermine />} /> */

@@ -10,7 +10,7 @@ const BookingSteps = ({ next }) => {
 
   return (
     <ListGroup id="booking-steps">
-        <h4>Your Booking</h4>
+        <h4>Deine Buchung</h4>
         {steps && steps.map((step, i) => {
             return <ListGroup.Item key={step.id}><span>{i + 1}</span> {step.title}</ListGroup.Item>
         })}

@@ -124,7 +124,7 @@ const TimeSlotCalendar = () => {
     }, [date])
 
   return (
-    <form style={{display: 'flex', height: "30vh", alignItems: "center", gap: "30px"}}>    
+    <form style={{display: 'flex', height: "30vh", alignItems: "center", gap: "30px"}}>
         <DatePicker 
         onChange={setDate} 
         value={date}

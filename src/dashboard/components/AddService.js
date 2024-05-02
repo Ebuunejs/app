@@ -8,7 +8,6 @@ const BASE_URL = config.backendUrl;
 const imageURL = require('../images/employee-2.png');
 
 const initialState={
-    path: "",
     name: "",
     description: "",
     price: "",
@@ -19,75 +18,102 @@ const AddService = ({show, setShow,changed,setChanged,service,index,update,setUp
     const [state , setState] = useState(initialState);
     const {images_id, name,description,price,duration} = state;
     const [file, setFile] = useState()
-    const [uploadedFileURL, setUploadedFileURL] = useState(null)
-
-    function handlePicInput  (event) {
-        let images = event.target.files[0];
-        setFile(images);
-        const imageUrl = URL.createObjectURL(images);
-        setUploadedFileURL(imageUrl);
-        console.log("Image geladen");
-    }
-
-    const handleSubmit = async () =>{
-        try {
-            let fd = new FormData();
-            fd.append("images", file);
-            const response = await axios.post(`${BASE_URL}/image`,fd);
-            state.images_id=response.data;
-            addService();
-        } catch (error) {
-            console.log(error);
-        }
-    }
+    const [error, setError] = useState("");
 
     const addService = async () => {
         try {
             console.log("updateState: ",update)
-            if(update){
-                const response = await axios.put(`${BASE_URL}/services/${index}`,state);
-                console.log(response)
+            if(update){// update Service
+                const response = await axios.post(`${BASE_URL}/services/${index}`, prepareForm(), {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Content-Type': 'multipart/form-data',
+                    },
+                });  
+                console.log("update: ",response)
                 if (response.status === 201) {
-                    console.log("UpdateService")
+                    console.log("update finish")
                     setState(response.data);
-                    setUpdate(false);
                     setChanged(!changed);
                 }
-
-                setState({
-                    images_id: "",
-                    name: "",
-                    description: "",
-                    price: "",
-                    duration: ""
-                });
-            }else{
-                console.log(state)
-                const response = await axios.post(`${BASE_URL}/services`,state);
-                if (response.status === 201) {
-                    console.log("Service added succesfully");
-                    //setUpdate(false)
-                    setChanged(!changed);
-                } 
-            }
-            setShow(!show);
-        } catch (e) {
+                resetFields();
+            }   else{// add new Employee
+                    const response = await axios.post(`${BASE_URL}/services`,prepareForm(),{
+                        headers: {
+                        'Content-Type': 'multipart/form-data',
+                        },
+                    })
+                    console.log(response);
+                    if (response.status === 201) {
+                        setChanged(!changed);
+                    } else if(response.status === 200){
+                        console.log("Employee not added succesfully");
+                    }
+                }
+                setShow(!show);
+                setUpdate(!update);
+                console.log("Proces over");
+            } catch (e) {
             console.error(e)
         }
+    }
 
+    function handlePicInput  (event) {
+        const file = event.target.files ? event.target.files[0] : null;
+        let validation =  validateFile(file);
+        console.log("validation: ", validation);
+        if(validation != 0){
+            let images = event.target.files[0];
+            setFile(images);
+        }else{
+            console.log("File ist not valid")
+        }
+    }
+   
+    function validateFile (file) {
+        console.log(file.size)
+        if (file) {
+          if (!file.type.startsWith('image/')) {
+            setError("Please select an image file");
+            return 0;
+          } else if (file.size > 3000000) {
+            setError("File size is too large");
+            return 0;
+          } else {
+            setFile(file);
+            setError("");
+            return 1;
+          }
+        }
+    }
+
+    function prepareForm(){
+        const fd = new FormData();
+        fd.append("image", file);
+        console.log(file)
+        fd.append("name", name);
+        fd.append("description", description);
+        fd.append("price", price);
+        fd.append("duration", duration);
+        return fd;
+    }
+
+    const resetFields = (e) =>{
+        setState({
+            name: "",
+            description: "",
+            price: "",
+            duration: ""
+        });
     }
 
     function handleClose(){
         try {
             setShow(!show);
-            setState({
-                images_id: "",
-                name: "",
-                description: "",
-                price: "",
-                duration: ""
-            });
-
+            setChanged(!changed);
+        
+            setUpdate(!update);
+            resetFields();
         } catch (e) {
             console.error(e)
         }
@@ -102,9 +128,7 @@ const AddService = ({show, setShow,changed,setChanged,service,index,update,setUp
         console.log("index",index)
         if(!!index) {
             const res = await axios.get(`${BASE_URL}/services/${index}`);
-            const data = res.data;
-            console.log(data)
-            setState(data);
+            setState(res.data);
         }
     }
 
@@ -119,31 +143,35 @@ const AddService = ({show, setShow,changed,setChanged,service,index,update,setUp
             </Modal.Header>
             
             <Modal.Body style={{display:"flex", gap:"20px",flexDirection:"column"}}>
-            <Form.Group as={Col} md="12" style={{display:"flex", gap:"20px"}}>
-                <Form.Control placeholder="Name" type="file" name="path" onChange={handlePicInput}/>
-            </Form.Group>
-            <Col xs={6} md={4}>
+                <Form.Group as={Col} md="12" style={{display:"flex", gap:"20px"}}>
+                    <Form.Control placeholder="Name" type="file" name="path" onChange={handlePicInput}/>
+                </Form.Group>
                 
-                <Image src={uploadedFileURL} style={{border:"none", borderRadius:"50%",height:"50px"}}  />
-            </Col>
-            <Form.Control type="text" placeholder="Dienstleistungen" name="name" onChange={handleInputChange} value={name}/>
-            <Form.Group as={Col} md="12" style={{display:"flex", gap:"20px"}}>
-                <Form.Control placeholder="Beschreibung" 
-                  as="textarea"
-                  style={{ height: '100px' }}
-                name="description" 
-                onChange={handleInputChange} 
-                value={description}/>
-            </Form.Group>
-            <Form.Group as={Col} md="12" style={{display:"flex", gap:"20px"}}>
-                <Form.Control type="text" placeholder="Preis" name="price" onChange={handleInputChange} value={price}/>
-                <Form.Control type="text" placeholder="Dauer" name="duration" onChange={handleInputChange} value={duration}/>
-            </Form.Group>
+                <Col xs={6} md={4}>
+                    <Image src={file ? URL.createObjectURL(file) : null} style={{border:"none", borderRadius:"50%",height:"50px"}}  />
+                    <label name="error" placeholder="File Ok!">{error}</label>
+                </Col>
+
+                <Form.Control type="text" placeholder="Dienstleistungen" name="name" onChange={handleInputChange} value={name}/>
+                
+                <Form.Group as={Col} md="12" style={{display:"flex", gap:"20px"}}>
+                    <Form.Control placeholder="Beschreibung" 
+                    as="textarea"
+                    style={{ height: '100px' }}
+                    name="description" 
+                    onChange={handleInputChange} 
+                    value={description}/>
+                </Form.Group>
+            
+                <Form.Group as={Col} md="12" style={{display:"flex", gap:"20px"}}>
+                    <Form.Control type="text" placeholder="Preis" name="price" onChange={handleInputChange} value={price}/>
+                    <Form.Control type="text" placeholder="Dauer" name="duration" onChange={handleInputChange} value={duration}/>
+                </Form.Group>
             </Modal.Body>
                     
             <Modal.Footer>  
                 <Button style={{backgroundColor:"#BD5450",border:"none"}}  onClick={handleClose}>Close</Button>
-                <Button style={{backgroundColor:"#7DB561",border:"none"}}  onClick={handleSubmit}>Save</Button>
+                <Button style={{backgroundColor:"#7DB561",border:"none"}}  onClick={addService}>Save</Button>
             </Modal.Footer>
             
         </Modal>

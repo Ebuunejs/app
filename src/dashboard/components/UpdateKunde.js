@@ -67,6 +67,7 @@ function UpdateKunde() {
         data.street=response.data[1].street;
         data.plz=response.data[1].plz;
     }
+    
     const addContact = async (data)=>{
         try {
             console.log(data)
@@ -136,7 +137,7 @@ function UpdateKunde() {
     }
 
     const cancelProcess = (e) =>{
-        console.log("abbgebreochen");
+        console.log("abgebrochen");
         navigate('/user');
     }
 

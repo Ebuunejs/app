@@ -1,17 +1,26 @@
 import '../../App.css';
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import BarberCard from '../components/BarberCard';
 import axios from 'axios';
-const API_URL = 'http://127.0.0.1:8000/api/';
+import config from '../../dashboard/config';
+// Verwendung der backendUrl
+const BASE_URL = config.backendUrl;
 
 const Reservation = () => {
-
+    const [employees, setEmployees] = useState();
     const { bussines } = useParams();
 
     const fetchEmployee = async() =>{
-        const res=await axios.get(`${API_URL}${bussines}/employees`);
-        console.log(res);
+      try{
+        const res=await axios.get(`${BASE_URL}/employees`);
+        if (res.status === 200) {
+          setEmployees(res.data.data);
+        }
+      }catch (e) {
+        console.error(e);
+    }
+        
     }
 
     useEffect(() => {
@@ -25,9 +34,15 @@ const Reservation = () => {
         {/* <TimeSlotCalendar /> */}
       <h2>Wähle einen Coiffeure:</h2>
         <div className='barbers'>
-            <BarberCard />
-            <BarberCard />
-            <BarberCard />
+               {  employees &&
+                  employees.map((curEmployee) => {
+                      return (
+                        <>
+                        <BarberCard curEmployee={curEmployee}/>
+                        </>
+                      )
+                  })
+                }
         </div>
     </div>
   )

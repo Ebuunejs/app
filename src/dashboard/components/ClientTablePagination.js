@@ -1,19 +1,49 @@
 import Pagination from 'react-bootstrap/Pagination';
+import '../../YourPaginationStyle.css';
+//function ClientTablePagination({handlePreviousPage,handleNextPage,info,handleFirstPage, handleLastPage}) {
+function ClientTablePagination({info,call,page,setPage,totalPages}) { 
+  
+    const handleNextPage =  (e) =>{
+      e.preventDefault();
+      if(page < totalPages){
+        setPage(page+1);
+        call();
+      }
+  };
+  
+  const handlePreviousPage =  (e) =>{
+    e.preventDefault();
+    if(page > 1){
+      setPage(page-1);
+      call();
+    }
+  };
 
-function ClientTablePagination() {
+  const handleLastPage =  (e) =>{
+    e.preventDefault();
+    if(page<=totalPages){
+      setPage(totalPages);
+      call();
+    }
+  };
+
+  const handleFirstPage =  (e) =>{
+    e.preventDefault();
+    if(page>=1){
+      setPage(1);
+      call();
+    }
+  };
+
   return (
     <div >
-        <Pagination active = "true">
-          <Pagination.First pagination-color="#60A8C1"/>
-          <Pagination.Prev />
-          <Pagination.Item >{11}</Pagination.Item>
-
-          <Pagination.Item active style={{backgroundColor:"#60A8C1"}} >{12}</Pagination.Item>
-          <Pagination.Item>{13}</Pagination.Item>
-
-          <Pagination.Next />
-          <Pagination.Last />
-        </Pagination>
+           <Pagination active = "true">
+                <Pagination.First onClick={handleFirstPage}/>
+                <Pagination.Prev onClick={handlePreviousPage}/>
+                <Pagination.Item active  >{info?.current_page}</Pagination.Item>
+                <Pagination.Next onClick={handleNextPage}/>
+                <Pagination.Last onClick={handleLastPage}/>
+          </Pagination>
     </div>
   );
 }

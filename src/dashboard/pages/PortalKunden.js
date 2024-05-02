@@ -27,8 +27,8 @@ function PortalKunden() {
                     <Button style={{backgroundColor:"#60A8C1",border:"none"}} onClick={addCustom}><FontAwesomeIcon icon={faPlus} /> addCustomer</Button>
                 </div>
                 <hr/>
-                {<ClientTable/>}
-                
+                <ClientTable/>
+
             </Container>
         </React.Fragment>
         );

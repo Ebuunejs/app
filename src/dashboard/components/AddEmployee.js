@@ -12,89 +12,69 @@ const initialState={
     email: "",
     phone: "",
     password: "",
-    role:"employee",
     path: ""
 }
 
-const AddEmployee = ({show, setShow,changed,setChanged,employee,index,update,setUpdate}) => {
+const AddEmployee = ({show, setShow,changed,setChanged,index,update,setUpdate}) => {
     const [state , setState] = useState(initialState);
     const {name, surname,email,phone,password,role,path} = state;
-    const [file, setFile] = useState();
+    const [file, setFile] = useState(null);
+    const [error, setError] = useState("");
 
     const addEmployee = async (e) => {
         e.preventDefault();
         try {
-            console.log("updateState: ",update)
-            if(update){
-                const response = await axios.put(`${BASE_URL}/employees/${index}`,state);
+            if(update){ // update Employee
+                console.log("update")
+                const response = await axios.post(`${BASE_URL}/employees/${index}`, prepareForm(), {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Content-Type': 'multipart/form-data',
+                    },
+                });  
                 console.log(response)
                 if (response.status === 201) {
-                    console.log("UpdateContact")
+                    console.log("update finish")
                     setState(response.data);
-                    setUpdate(false);
                     setChanged(!changed);
                 }
-
-                setState({
-                    name: "",
-                    surname: "",
-                    email: "",
-                    password: "",
-                    phone: "",
-                    path: ""
-                });
-            }else{
-                const fd = new FormData()
-                fd.append("images", e.target.file?.files[0]);
-                
-                fd.append("name", name);
-                fd.append("surname", surname);
-                fd.append("email", email);
-                fd.append("phone", phone);
-                fd.append("password", password);
-                fd.append("role", role);
-                //fd.append("path", path);
-                
-                /*console.log(file)
-                console.log(state);
-                console.log(fd);*/
-                const response = await axios.post(`${BASE_URL}/employees`,fd, {
+                resetFields();
+            }else{ // add new Employee
+                const response = await axios.post(`${BASE_URL}/employees`,prepareForm(),{
                     headers: {
                       'Content-Type': 'multipart/form-data',
                     },
-                  })
-                /*{
-                            params: {
-                                state,
-                                fd,
-                            },
-                            })*/
-                console.log(response);
+                  });
                 if (response.status === 200) {
-                    console.log("Employee added succesfully");
-                    //setUpdate(false)
                     setChanged(!changed);
-                } else 
-                console.log("Employee not added succesfully");
+                } else if(response.status === 201){
+                    console.log("Employee not added succesfully");
+                }
             }
             setShow(!show);
+            setUpdate(!update);
+            console.log("Proces over");
         } catch (e) {
             console.error(e)
         }
-
     }
 
+    function prepareForm(){
+        const fd = new FormData();
+        fd.append("image", file);
+        fd.append("name", name);
+        fd.append("surname", surname);
+        fd.append("email", email);
+        fd.append("phone", phone);
+        fd.append("password", password);
+        return fd;
+    }
+    
     function handleClose(){
         try {
             setShow(!show);
-            setState({
-                name: "",
-                surname: "",
-                email: "",
-                password: "",
-                phone: "",
-                path: ""
-            });
+            setUpdate(!update);
+            resetFields();
         } catch (e) {
             console.error(e)
         }
@@ -105,37 +85,54 @@ const AddEmployee = ({show, setShow,changed,setChanged,employee,index,update,set
         setState({ ...state, [name]: value});
     }
 
+    const resetFields = (e) =>{
+        setState({
+            name: "",
+            surname: "",
+            email: "",
+            password: "",
+            phone: "",
+            path: ""
+        });
+    }
+
     const updateFields = async(e) =>{
         if(!!index) {
             const res = await axios.get(`${BASE_URL}/employees/${index}`);
-            const data = res.data;
-            setState(data);
+            setState(res.data);
         }
     }
 
     function handlePicInput  (event) {
-        //const file = event.target.files ? event.target.files[0] : null;
-        //validateFile(file);
-        let images = event.target.files[0];
-        console.log("path: ", images.name);
-        //path=images.name;
-        //path= URL.createObjectURL(images);
-        setFile(URL.createObjectURL(images));
-        console.log("Image geladen",URL.createObjectURL(images));
+        const file = event.target.files ? event.target.files[0] : null;
+        let validation =  validateFile(file);
+        console.log("validation: ", validation);
+        if(validation != 0){
+            let images = event.target.files[0];
+            setFile(images);
+        }else{
+            console.log("File ist not valid")
+        }
     }
-    /*
-    const validateFile = (file: File | null) => {
+   
+    function validateFile (file) {
+        console.log(file.size)
         if (file) {
           if (!file.type.startsWith('image/')) {
-            //setError('Please select an image file');
+            setError("Please select an image file");
+            return 0;
           } else if (file.size > 1000000) {
-           // setError('File size is too large');
+            setError("File size is too large");
+            return 0;
           } else {
             setFile(file);
-            //setError('');
+            setError("");
+            return 1;
           }
         }
       }
+/*
+      unten onChange={e => setFile(URL.createObjectURL(e.target?.files[0]))}
 */
 
     useEffect(() => {
@@ -151,11 +148,12 @@ const AddEmployee = ({show, setShow,changed,setChanged,employee,index,update,set
             <Modal.Body style={{display:"flex", gap:"20px",flexDirection:"column"}}>
             
             <Form.Group as={Col} md="12" style={{display:"flex", gap:"20px"}}>
-                <Form.Control placeholder="Name" type="file" name="file" onChange={handlePicInput}/>
+                <Form.Control placeholder="Name" type="file"  name="profile_img" id="profile_img" onChange={handlePicInput}/>
             </Form.Group>
 
             <Col xs={6} md={4}>
-                <Image src={file} style={{border:"none", borderRadius:"50%",height:"50px"}}  alt={"Photo"}/>
+                <Image src={file ? URL.createObjectURL(file) : null} style={{border:"none", borderRadius:"50%",height:"50px"}}  alt="Photo" type="file"/>
+                <label name="error" placeholder="File Ok!">{error}</label>
             </Col>
 
             <Form.Group as={Col} md="12" style={{display:"flex", gap:"20px"}}>
