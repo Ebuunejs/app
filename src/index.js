@@ -1,13 +1,12 @@
 import * as React from "react";
-//import ReactDOM from 'react-dom/client';
-import {  BrowserRouter, Route, Routes } from "react-router-dom";
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import "./index.css";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import reportWebVitals from './reportWebVitals';
-import { createRoot } from 'react-dom/client';
-
 // Dashboard
 import App from "./App";
+import Login from './dashboard/pages/Login';
 import PortalHome from './dashboard/pages/PortalHome';
 import PortalUser from './dashboard/pages/PortalKunden';
 import PortalService from './dashboard/pages/PortalService';
@@ -16,42 +15,63 @@ import PortalEmployee from './dashboard/pages/PortalEmployee';
 import UpdateKunde from './dashboard/components/UpdateKunde';
 import PrivateRoute from './dashboard/util/PrivateRoute';
 import PortalStatistik from './dashboard/pages/PortalStatistik'
-import Login from './dashboard/pages/Login';
+import PortalSettings from './dashboard/pages/PortalSettings';
+
 // widget
-import Reservation from './widget/pages/Reservation';
-import Friseur from './widget/pages/Friseur';
-import CompleteOrder from './widget/pages/CompleteOrder';
-import BookingStepsContext from './widget/context/BookingStepsContext';
+import SalonPage from './widget/pages/SalonPage';
+import CoiffeurPage from './widget/pages/CoiffeurPage';
+import BookingPage from './widget/pages/BookingPage';
+import CustomerInfoPage from './widget/pages/CustomerInfoPage';
+import ConfirmationPage from './widget/pages/ConfirmationPage';
+import { BookingProvider } from './widget/context/BookingContext';
+import { SalonProvider } from './widget/context/SalonContext';
+import { BusinessProvider } from './widget/context/BusinessContext';
 import ImageUpload from "./dashboard/components/ImageUpload";
+import Register from "./dashboard/pages/Register";
 
-
-//const root = ReactDOM.createRoot(document.getElementById('root'));
-const root = createRoot(document.getElementById('root'));
+const root = ReactDOM.createRoot(document.getElementById('root'));
+//const root = createRoot(document.getElementById('root'));
 root.render(
-  <BrowserRouter>
-  <BookingStepsContext>
-    <Routes>
-      <Route path="/upload-image" component={ <ImageUpload /> }/>
-      <Route path="/auth/login" element={<Login />} />
-      <Route element={<PrivateRoute />}>
-        <Route path="/" element={<App />}>
-          <Route index element={<PortalHome />} />
-          <Route path="user" element={<PortalUser />} />
-          <Route path="statistik" element={<PortalStatistik />} />
-   
-          <Route path="employee" element={<PortalEmployee />} />
-          <Route path="company" element={<Company />} />
-          <Route path="service" element={<PortalService />} />
-          <Route path="updateUser" element={<UpdateKunde />} />
-          <Route path="dashboard" element={<PortalHome />} />
-        </Route>
-      </Route>
-      <Route path="/:bussines" element={<Reservation />} />
-      <Route path="/:bussines/:friseur" element={<Friseur />} />
-      <Route path="/:bussines/:friseur/complete-order" element={<CompleteOrder />} />
-    </Routes>
-    </BookingStepsContext>
-  </BrowserRouter>
+  <React.StrictMode>
+      <BookingProvider>
+        <BusinessProvider>
+          <SalonProvider>
+            <Router>
+              <Routes>
+
+                
+                {/* Erste Gruppe von Routen */}
+                <Route path="/upload-image" element={<ImageUpload />} />
+                <Route path="/auth/login" element={<Login />} />
+                <Route path="/auth/register" element={<Register />} />
+                
+                {/* Geschützte Routen mit PrivateRoute */}
+                <Route element={<PrivateRoute />}>
+                  <Route path="/" element={<App />}>
+                    <Route index element={<PortalHome />} />
+                    <Route path="user" element={<PortalUser />} />
+                    <Route path="statistik" element={<PortalStatistik />} />
+                    <Route path="employee" element={<PortalEmployee />} />
+                    <Route path="company" element={<Company />} />
+                    <Route path="service" element={<PortalService />} />
+                    <Route path="settings" element={<PortalSettings />} />
+                    <Route path="updateUser" element={<UpdateKunde />} />
+                    <Route path="dashboard" element={<PortalHome />} />
+                  </Route>
+                </Route>
+
+                {/* Widget-Routen */}
+                <Route path="/salon/:companyId" element={<SalonPage />} />
+                <Route path="/coiffeur" element={<CoiffeurPage />} />
+                <Route path="/booking" element={<BookingPage />} />
+                <Route path="/customer-info" element={<CustomerInfoPage />} />
+                <Route path="/confirmation" element={<ConfirmationPage />} />
+              </Routes>
+            </Router>
+          </SalonProvider>
+        </BusinessProvider>
+      </BookingProvider>
+  </React.StrictMode>
 );
 
 

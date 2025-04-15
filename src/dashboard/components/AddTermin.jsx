@@ -3,8 +3,9 @@ import axios from "axios";
 import { Button, Modal, Form, Col,Table} from "react-bootstrap";
 import DropdownButton from 'react-bootstrap/DropdownButton';
 import DropdownItem from 'react-bootstrap/esm/DropdownItem';
+import AddClient from "../components/AddClient";
 // get our fontawesome imports
-import { faPencil } from "@fortawesome/free-solid-svg-icons";
+import { faPencil,faPlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 // In anderen Dateien
 import config from '../config';
@@ -19,6 +20,14 @@ const initialState={
     password: "",
     role:"employee",
     path: ""
+}
+
+const initialTimeSlot={
+    date:'',
+    time:'',
+    bookings_id:'',
+    all_day:'',
+    types:''
 }
 
 const timeSlotsArray=[
@@ -40,13 +49,15 @@ const timeSlotsArray=[
     },
 ]
 
-const AddTermin = ({show, setShow,changed,setChanged,guest,setGuest}) => {
+const AddTermin = ({show, setShow,changed,setChanged,client,setClient, booking, setBooking}) => {
     const [state , setState] = useState(initialState);
-    const {name, surname,email,phone,password,role,path} = state;
-    const [clients, setClients] = useState([]);
+    //const [booking , setBooking] = useState(initialBooking);
+    const {searchName,name, surname,email,phone,password,role,path} = state;
+    const [showAddClient, setAddClient]=useState(false);
     const [error, setError] = useState("");
     const [search, setSearch] = useState(true);
     const [select, setSelect] = useState(false);
+    const [timeSlot , setTimeSlot] = useState(initialTimeSlot);
     const [time, setTime] = useState();
     const [date, setDate] = useState(new Date());
 
@@ -83,25 +94,78 @@ const AddTermin = ({show, setShow,changed,setChanged,guest,setGuest}) => {
 
  
 
-      const searchClient = async(e) =>{
+    const searchClient = async(e) =>{
         try {
-            
-            const query = state.name;
-            const response = await axios.get(`${BASE_URL}/search-customer/${query}`);
+            const token=localStorage.getItem('user-token');
+            const query = state.searchName;
+
+            const response = await axios.get(`${BASE_URL}/search-client/${query}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
             if (response.status === 200) {
                 console.log(response)
-                setClients(response.data);
+                setClient(response.data);
                 
             }
         } catch (e) {
             console.error(e)
+            setError(e);
+            state.name="Kunde nicht gefunden";
         }
-      }
+    }
+    const addClient = async(e) =>{
+        try{
+            setAddClient(!showAddClient);
+            const token=localStorage.getItem('user-token');
 
+        }catch (e) {
+            console.error(e)
+        }
+    }
       const saveTermin = async(e) =>{
         if(!search){
             setSearch(!search);
+            const token=localStorage.getItem('user-token');
+
+            booking.businesses_id=1;
+            //booking.employees_id=1;
+            console.log("ID Client: ", client[0]['id']);
+            booking.clients_id=client[0]['id'];
+            //booking.timeslots_id=response.data['id'];
+            booking.date=date;
+            booking.startTime=time;
+            booking.total_time=20;
+            booking.total_price=25;
+            booking.state="pending";
+            console.log("booking: ",booking);
+            const responseBooking = await axios.post(`${BASE_URL}/bookings`,booking, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            console.log("ResponseBooking: ", responseBooking);
+
+            timeSlot.date=date;
+            timeSlot.bookings_id=responseBooking.data['id'];
+            timeSlot.time=time;
+            timeSlot.all_day=0;
+            timeSlot.types="termin";
+
+            //console.log("Client Name ", client[0].name);
+
+            console.log("Timeslot: ",timeSlot);
+
+            const response = await axios.post(`${BASE_URL}/timeslots`,timeSlot, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
         }
+
         if(select){
             setSelect(!select);
         }
@@ -112,6 +176,7 @@ const AddTermin = ({show, setShow,changed,setChanged,guest,setGuest}) => {
       const getClient = async(index) =>{
         setSearch(!search);
         setSelect(!select);
+
         console.log(index,select)
       }
       
@@ -129,13 +194,15 @@ const AddTermin = ({show, setShow,changed,setChanged,guest,setGuest}) => {
             <Modal.Body style={{display:"flex", gap:"20px",flexDirection:"column"}}>
             
                 <Form.Group as={Col} md="12" style={{display:"flex", gap:"20px"}}>
-                    <Form.Control placeholder="Name" type="text" name="name" onChange={handleInputChange} value={name}/>
+                    <Form.Control placeholder="Name" type="text" name="searchName" onChange={handleInputChange} value={searchName}/>
                     <Button style={{backgroundColor:"#60A8C1",border:"none"}}  onClick={searchClient}>Search</Button>
+                    <Button style={{backgroundColor:"#7DB561",borderRadius:"50%",border:"none"}} onClick={addClient}><FontAwesomeIcon icon={faPlus} /> </Button>
                 </Form.Group>
+                <AddClient show={showAddClient} setShow={setAddClient} title={"neuer Kunde"} />
 
                 <Form.Group as={Col} md="20" style={{display:"flex", gap:"20px"}}>
                 
-                {search && clients && name ? 
+                {search && client && searchName ? 
                     <Table responsive>
                         <thead>
                             <tr>
@@ -147,7 +214,7 @@ const AddTermin = ({show, setShow,changed,setChanged,guest,setGuest}) => {
                         </thead>
                         <tbody>
                             {
-                                clients.map((curUser,idx) => {
+                                client.map((curUser,idx) => {
                                     return (
                                         <tr key={idx}>
                                             <td>{curUser.name}</td>
@@ -177,7 +244,7 @@ const AddTermin = ({show, setShow,changed,setChanged,guest,setGuest}) => {
                                          {timeSlotsArray &&
                                         timeSlotsArray.map(timeSlt => {
                                           return(      
-                                                <DropdownItem key = {timeSlt.id}  onClick={(e) => setDate(timeSlt.time)}>
+                                                <DropdownItem key = {timeSlt.id}  onClick={(e) => setTime(timeSlt.time)}>
                                                     {timeSlt.time ? timeSlt.time:"leer"}
                                                 </DropdownItem>)
                                         })

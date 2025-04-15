@@ -1,15 +1,18 @@
 import Card from 'react-bootstrap/Card';
 import { Icon } from '@iconify/react';
+import React, { useContext } from 'react';
+import { BookingContext } from '../context/BookingContext';
 
-function HairStyleCard({image, title, steps, setSteps, id}) {
-  
+
+function HairStyleCard({image, title, steps, setSteps, id, idS}) {
+  const { bookingDetails } = useContext(BookingContext);
   
   const isInSteps = steps !== null && steps.filter(step => step.id == id);
 
   const addNremoveSteps = () => {
 
     if(isInSteps.length == 0) {
-        setSteps([...steps, {title, id}])
+        setSteps([...steps, {title, id, idS}])
     } else {
       const newSteps = steps.filter(step => step.id !== id);
       setSteps([...newSteps]);

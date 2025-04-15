@@ -5,6 +5,7 @@ import "./main.css"
 
 import PortalNavbar from "./dashboard/layout/PortalNavbar";
 import PortalFooter from "./dashboard/layout/PortalFooter";
+import BookingStepsContext from './widget/context/BookingStepsContext';
 
 function App () {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -15,13 +16,13 @@ function App () {
   }, [])
 
   return (
-    <div className="App">
-  
+    <BookingStepsContext>
+      <div className="App">
         {isLoggedIn && <PortalNavbar /> }
-            <Outlet />
+        <Outlet />
         {isLoggedIn && <PortalFooter />}
-  
-    </div>
+      </div>
+    </BookingStepsContext>
   );
 }
 
@@ -60,7 +61,6 @@ state = {
   };
 
   onEventDrop = (data) => {
-    console.log(data);
   };
 
 

@@ -21,16 +21,24 @@ const Employee = ({changed,setChanged,employee,setEmployee}) => {
     const [info, setInfo] = useState(null)
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(info?.last_page);
+    const token=localStorage.getItem('user-token');
 
-    const  fetchEmployees = (url)=>{
+    
+    const  fetchEmployees  = async (url) => {
         try {
             if(url){
-                axios.get(url)
-                .then((response) => {
+                const response = await axios.get(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+                if(response.status === 200){
+                    console.log("fetch Employee",response)
                     setEmployee(response.data.data);
                     setInfo(response.data);
                     setTotalPages(response.data.last_page);
-                })
+               }
             }
         } catch (e) {
             console.error(e)
@@ -39,14 +47,19 @@ const Employee = ({changed,setChanged,employee,setEmployee}) => {
 
     const deleteEmployee = async (index)=>{
         try {
-            if(window.confirm("Wollen Sie sicher den Kunden löschen")){
-                const API_URL =  `${BASE_URL}/employees/${index}`;
-                const response = await axios.delete(API_URL);
-                console.log(response)
+            if(window.confirm("Wollen Sie sicher den Kunden löschen")){        
+                console.log(index);        
+                const response = await axios.delete(`${BASE_URL}/employee/${index}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+                console.log("Response ",response)
                 if (response.status === 200) { 
                     console.log("jetzt löschen");
                 }
-                fetchEmployees(BASE_URL);
+                fetchEmployees(`${BASE_URL}/employee?page=${page}`);
                 console.log("jetzt update");
             }         
         } catch (e) {
@@ -66,11 +79,11 @@ const Employee = ({changed,setChanged,employee,setEmployee}) => {
     }
 
     useEffect(() => {
-        fetchEmployees(`${BASE_URL}/employees?page=${page}`);
+        fetchEmployees(`${BASE_URL}/employee?page=${page}`);
     }, [changed,index,page])
 
     function handlePagination(){
-        fetchEmployees(`${BASE_URL}/employees?page=${page}`);
+        fetchEmployees(`${BASE_URL}/employee?page=${page}`);
     }
 
 //style={{display:"flex",flexDirection:"column",justifyContent:"space between" }}
@@ -93,7 +106,7 @@ const Employee = ({changed,setChanged,employee,setEmployee}) => {
                                 employee.map((curUser,idx) => {
                                     return (
                                         <tr key={idx} >
-                                            <td><Image src={`http://127.0.0.1:8000/api/images/employees/${curUser.photo}`  || imageURL } style={{border:"none", borderRadius:"50%",height:"50px"}} alt="Fotoname" /></td>
+                                            <td><Image src={`http://127.0.0.1:8000/storage/images/employees/${curUser.photo}`  || imageURL } style={{border:"none", borderRadius:"50%",height:"50px"}} alt="Fotoname" /></td>
                                             <td>{curUser.name}</td>
                                             <td>{curUser.surname}</td>
                                             <td>{curUser.email}</td>

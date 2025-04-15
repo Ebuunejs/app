@@ -1,70 +1,90 @@
-# Getting Started with Create React App
+# Restaurant Management System
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Ein umfassendes Management-System für Restaurants mit Funktionen für verschiedene Rollen wie Manager, Administrator, Kellner und Küchenchef.
 
-## Available Scripts
+## Funktionen
 
-In the project directory, you can run:
+- **Benutzerverwaltung** mit rollenbasierten Zugriffsrechten
+- **Reservierungsverwaltung** für Tischbuchungen
+- **Tischverwaltung** mit Statusaktualisierungen
+- **Menüverwaltung** mit Kategorien und anpassbaren Gerichten
+- **Bestellungsverwaltung** für Küche und Service
+- **Dashboard** mit rollenspezifischen Übersichten und Statistiken
 
-### `npm start`
+## Rollen und Zugriffsrechte
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Manager**: Vollständiger Zugriff auf alle Funktionen, einschließlich Reservierungen, Tische, Bestellungen und Einstellungen
+- **Administrator**: Systemeinstellungen und Benutzerverwaltung
+- **Kellner**: Tisch- und Reservierungsverwaltung, Bestellungsaufnahme
+- **Küchenchef**: Verwaltung von Bestellungen und Menü
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Installation
 
-### `npm test`
+1. Repository klonen:
+   ```
+   git clone https://github.com/yourusername/restaurant-management.git
+   cd restaurant-management
+   ```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+2. Abhängigkeiten installieren:
+   ```
+   npm install
+   ```
 
-### `npm run build`
+3. Anwendung starten:
+   ```
+   npm start
+   ```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Die Anwendung wird unter [http://localhost:3000](http://localhost:3000) geöffnet.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Login-Informationen (Demo)
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Für Testzwecke können folgende Anmeldedaten verwendet werden:
 
-### `npm run eject`
+| Rolle      | Benutzername | Passwort    |
+|------------|--------------|-------------|
+| Manager    | manager      | manager123  |
+| Admin      | admin        | admin123    |
+| Kellner    | waiter       | waiter123   |
+| Küchenchef | chef         | chef123     |
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Technologie-Stack
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- **React**: Frontend-Bibliothek
+- **React Router**: Für die Navigation
+- **Material-UI**: UI-Komponenten
+- **Recharts**: Für Diagramme und Visualisierungen
+- **date-fns**: Datums- und Zeitverarbeitung
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Projektstruktur
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```
+src/
+├── components/           # UI-Komponenten
+│   ├── auth/             # Authentifizierungskomponenten
+│   ├── dashboard/        # Dashboard für verschiedene Rollen
+│   ├── profile/          # Benutzerprofilkomponenten
+│   ├── reservations/     # Reservierungsverwaltung
+│   ├── tables/           # Tischverwaltung
+│   ├── menu/             # Menüverwaltung
+│   └── settings/         # Einstellungen
+├── context/              # React Context für globalen Zustand
+│   ├── AuthContext.js    # Authentifizierungskontext
+│   ├── ReservationContext.js  # Reservierungskontext
+│   ├── TableContext.js   # Tischkontext
+│   └── MenuContext.js    # Menükontext
+└── App.jsx               # Hauptkomponente mit Routing
+```
 
-## Learn More
+## Erweiterungsmöglichkeiten
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+- Integration einer Backend-API für persistente Datenspeicherung
+- Implementierung einer Echtzeit-Benachrichtigungsfunktion
+- Mobile App-Version für Kellner und Küchenpersonal
+- Kundenportal für Online-Reservierungen
+- Integration mit POS-Systemen
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Lizenz
 
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+MIT

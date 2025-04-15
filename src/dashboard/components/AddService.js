@@ -16,17 +16,19 @@ const initialState={
 
 const AddService = ({show, setShow,changed,setChanged,service,index,update,setUpdate}) => {
     const [state , setState] = useState(initialState);
-    const {images_id, name,description,price,duration} = state;
+    const {image_path, name,description,price,duration} = state;
     const [file, setFile] = useState()
     const [error, setError] = useState("");
+    const token=localStorage.getItem('user-token');
 
     const addService = async () => {
         try {
             console.log("updateState: ",update)
+            console.log("Data to update: ",state)
             if(update){// update Service
                 const response = await axios.post(`${BASE_URL}/services/${index}`, prepareForm(), {
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'multipart/form-data',
                     },
                 });  
@@ -36,11 +38,12 @@ const AddService = ({show, setShow,changed,setChanged,service,index,update,setUp
                     setState(response.data);
                     setChanged(!changed);
                 }
-                resetFields();
+                
             }   else{// add new Employee
                     const response = await axios.post(`${BASE_URL}/services`,prepareForm(),{
                         headers: {
-                        'Content-Type': 'multipart/form-data',
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'multipart/form-data',
                         },
                     })
                     console.log(response);
@@ -52,6 +55,7 @@ const AddService = ({show, setShow,changed,setChanged,service,index,update,setUp
                 }
                 setShow(!show);
                 setUpdate(!update);
+                resetFields();
                 console.log("Proces over");
             } catch (e) {
             console.error(e)
@@ -88,14 +92,15 @@ const AddService = ({show, setShow,changed,setChanged,service,index,update,setUp
     }
 
     function prepareForm(){
-        const fd = new FormData();
-        fd.append("image", file);
-        console.log(file)
-        fd.append("name", name);
-        fd.append("description", description);
-        fd.append("price", price);
-        fd.append("duration", duration);
-        return fd;
+        const formData = new FormData();
+        formData.append('name', state.name);
+        formData.append('description', state.description);
+        formData.append('price', state.price);
+        formData.append('duration', state.duration);
+        if (file) {  // Stelle sicher, dass `file` hier korrekt verwendet wird
+            formData.append('image', file);
+        }
+        return formData;
     }
 
     const resetFields = (e) =>{
@@ -125,10 +130,16 @@ const AddService = ({show, setShow,changed,setChanged,service,index,update,setUp
     }
 
     const updateFields = async(e) =>{
-        console.log("index",index)
+        console.log("index",index);
         if(!!index) {
-            const res = await axios.get(`${BASE_URL}/services/${index}`);
-            setState(res.data);
+
+            const response = await axios.get(`${BASE_URL}/services/${index}`,{
+            headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            })
+            setState(response.data);
         }
     }
 
@@ -144,7 +155,7 @@ const AddService = ({show, setShow,changed,setChanged,service,index,update,setUp
             
             <Modal.Body style={{display:"flex", gap:"20px",flexDirection:"column"}}>
                 <Form.Group as={Col} md="12" style={{display:"flex", gap:"20px"}}>
-                    <Form.Control placeholder="Name" type="file" name="path" onChange={handlePicInput}/>
+                    <Form.Control placeholder="Name" type="file" name="image_path" onChange={handlePicInput}/>
                 </Form.Group>
                 
                 <Col xs={6} md={4}>

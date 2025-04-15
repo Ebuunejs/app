@@ -5,10 +5,17 @@ import 'react-date-picker/dist/DatePicker.css';
 import 'react-calendar/dist/Calendar.css';
 import DatePicker from 'react-date-picker';
 import { StepsContext } from '../context/BookingStepsContext';
+import { BookingContext } from '../context/BookingContext';
+import { useSalonContext } from "../context/SalonContext";
 import { Link, useNavigate } from 'react-router-dom';
+import TimeSlot from './TimeSlot';
 
 const TimeSlotCalendar = () => {
-    const [ steps, setSteps ] = useContext(StepsContext);
+    const stepsContext = useContext(StepsContext) || { steps: [], setSteps: () => {} };
+    const { steps, setSteps } = stepsContext;
+    const { bookingDetails, setBookingDetails } = useContext(BookingContext) || { bookingDetails: {}, setBookingDetails: () => {} };
+    const { setAppointment } = useSalonContext();
+    
     const [ date, setDate ] = useState(new Date());
     const [ dropdownOpen, setDropdownOpen ] = useState(false);
 
@@ -112,41 +119,85 @@ const TimeSlotCalendar = () => {
     }
 
     const pickDate = (timeslot) => {
+        // Bereite Datums- und Zeitinformationen vor - mit Zeitzonenkorrektur
+        const formattedDate = formatDateToYYYYMMDD(date);
+        
+        // Extrahiere nur die Startzeit, handle verschiedene Zeitformate
+        let timeString = timeslot.time;
+        
+        // Wenn es ein Zeitbereich ist (z.B. "10:00 - 10:30"), nehme nur die Startzeit
+        if (timeString.includes(' - ')) {
+            timeString = timeString.split(' - ')[0];
+        }
+        
+        // Entferne führende Nullen und normalisiere das Format für die Datenbank
+        // Beispiel: "9:00" -> "09:00", "01:30" bleibt "01:30"
+        const [hours, minutes] = timeString.split(':');
+        const normalizedTime = `${hours.length === 1 ? '0' + hours : hours}:${minutes}`;
+        
+        // Aktualisiere den StepsContext
+        const dateString = {id: 42, title: `Date: ${date.toString().slice(0, 16)} at ${normalizedTime}`};
         const newArr = steps.filter(step => step.id != 42);
         const idInSteps = steps.filter(step => step.id == 42);
-        const dateString = {id: 42, title: `Date: ${date.toString().slice(0, 16)} at ${timeslot.time}`};
-
-        idInSteps.length > 0 ? setSteps([...newArr, dateString]) : setSteps([...steps, dateString]); 
+        
+        // Update Steps Context
+        idInSteps.length > 0 ? setSteps([...newArr, dateString]) : setSteps([...steps, dateString]);
+        
+        // Update BookingContext
+        setBookingDetails(prev => ({
+            ...prev,
+            date: formattedDate,
+            startTime: normalizedTime // Speichere die Zeit auch direkt im BookingContext
+        }));
+        
+        // Update SalonContext
+        setAppointment({
+            date: date,
+            time: normalizedTime
+        });
     }
+    
+    // Hilfsfunktion zur Formatierung des Datums, die Zeitzonenprobleme vermeidet
+    const formatDateToYYYYMMDD = (date) => {
+        // Manuelle Formatierung im YYYY-MM-DD Format unter Berücksichtigung der lokalen Zeitzone
+        const year = date.getFullYear();
+        // getMonth() gibt 0-11 zurück, daher +1
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
     useEffect(() => {
         sortTimeSlots();
     }, [date])
 
   return (
-    <form style={{display: 'flex', height: "30vh", alignItems: "center", gap: "30px"}}>
-        <DatePicker 
-        onChange={setDate} 
-        value={date}
-        minDate={new Date()}
-        required="true"
-        excludeDates="Sat Aug 26 2023 02:14:04 GMT-0700 (Pacific Daylight Time)"
-        isOpen={true}
-        />
-        
-        <DropdownButton 
-            id="dropdown-item-button" 
-            title="Pick a Date"
-            onClick={() => setDropdownOpen(true)}
-        >
-            {
-            terminSlots.map(timeslot => {
-                return <Dropdown.ItemText as={Link} to='complete-order'  key={timeslot.id} onClick={() => pickDate(timeslot)} className='time-slot'>{timeslot.time}</Dropdown.ItemText>
-            })
-            }            
-        </DropdownButton>
-    </form>
-
+    <div >
+        <form style={{display: 'flex', height: "30vh", alignItems: "center", gap: "30px"}}>
+            <DatePicker 
+            onChange={setDate} 
+            value={date}
+            minDate={new Date()}
+            required="true"
+            excludeDates="Sat Aug 26 2023 02:14:04 GMT-0700 (Pacific Daylight Time)"
+            isOpen={true}
+            />
+            
+            <DropdownButton 
+                id="dropdown-item-button" 
+                title="Wähle einen Termin"
+                onClick={() => setDropdownOpen(true)}
+            >
+                {
+                terminSlots.map(timeslot => {
+                    return <Dropdown.ItemText as={Link} to='complete-order'  key={timeslot.id} onClick={() => pickDate(timeslot)} className='time-slot'>{timeslot.time}</Dropdown.ItemText>
+                })
+                }            
+            </DropdownButton>
+           
+        </form>
+        <TimeSlot/>
+    </div>
   )
 }
 

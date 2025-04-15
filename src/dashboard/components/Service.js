@@ -1,5 +1,5 @@
 import React from 'react';
-import {Button, Image,Container,Table} from 'react-bootstrap';
+import {Button, Image, Container, Table, Alert} from 'react-bootstrap';
 import {useEffect, useState} from "react";
 import axios from "axios";
 // get our fontawesome imports
@@ -22,18 +22,32 @@ const Service = ({changed,setChanged,service,setService}) => {
     const [info, setInfo] = useState(null)
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(info?.last_page);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const token=localStorage.getItem('user-token');
 
     const fetchServices = async (url) => {
         try {
+            setLoading(true);
+            setError(null);
             console.log("fetch Services")
-            const response = await axios.get(url);
-            console.log(response.data)
+            const response = await axios.get(url,{
+                headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                })
+            console.log("Fetch Response: ",response.data)
             if (response.status === 200) {
-                console.log("OK")
+                console.log("OK");
+                if (response.data.data.length === 0) {
+                    setError("Keine Dienstleistungen verfügbar. Bitte fügen Sie neue Dienstleistungen hinzu.");
+                }
                 for(let i=0;i < response.data.data.length;i++){
                     setInfo(response.data);
                     setTotalPages(response.data.last_page);
                     let index= response.data.data[i].images_id;
+                    console.log("INdex: ",index)
                     if(index != null){
                         console.log("nicht null");
                         axios
@@ -53,7 +67,10 @@ const Service = ({changed,setChanged,service,setService}) => {
                 setService(response.data.data);
             }
         } catch (e) {
-            console.error(e)
+            console.error(e);
+            setError("Fehler beim Laden der Dienstleistungen. Bitte versuchen Sie es später erneut.");
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -61,16 +78,23 @@ const Service = ({changed,setChanged,service,setService}) => {
         try {
             if(window.confirm("Wollen Sie sicher den Serivce löschen")){
                 const API_URL =  `${BASE_URL}/services/${index}`;
-                const response = await axios.delete(API_URL);
+                const response = await axios.delete(API_URL,{
+                    headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                        },
+                    })
+
                 console.log(response)
                 if (response.status === 200) {
                     console.log("jetzt löschen");
                 }
-                fetchServices(BASE_URL);
+                fetchServices(`${BASE_URL}/services`);
                 console.log("jetzt update");
             }         
         } catch (e) {
-            console.error(e)
+            console.error(e);
+            setError("Fehler beim Löschen der Dienstleistung. Bitte versuchen Sie es später erneut.");
         }
     }
 
@@ -82,7 +106,8 @@ const Service = ({changed,setChanged,service,setService}) => {
             setUpdate(!update);
             console.log("updated: index",index," service: ",service," update: ",update,"show: ",show);
         } catch (e) {
-            console.error(e)
+            console.error(e);
+            setError("Fehler beim Aktualisieren der Dienstleistung. Bitte versuchen Sie es später erneut.");
         }
     }
 
@@ -98,23 +123,40 @@ const Service = ({changed,setChanged,service,setService}) => {
     return (
         <React.Fragment>
             <Container>
-            <Table responsive>
-                <thead>
-                    <tr>
-                        <th>Foto</th>
-                        <th>Diensteistung</th>
-                        <th>Beschreibung</th>
-                        <th>Preis</th>
-                        <th>Zeit</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody  >
-                        {service && 
+            {error && (
+                <Alert variant="warning" className="my-3">
+                    <FontAwesomeIcon icon="exclamation-triangle" className="me-2" />
+                    {error}
+                </Alert>
+            )}
+            
+            {loading ? (
+                <div className="text-center my-5">
+                    <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Lädt...</span>
+                    </div>
+                    <p className="mt-2">Dienstleistungen werden geladen...</p>
+                </div>
+            ) : (
+                <>
+                {!error && (
+                    <Table responsive>
+                        <thead>
+                            <tr>
+                                <th>Foto</th>
+                                <th>Diensteistung</th>
+                                <th>Beschreibung</th>
+                                <th>Preis</th>
+                                <th>Zeit</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {service && service.length > 0 ? (
                                 service.map((curUser,idx) => {
                                     return (
                                         <tr key={idx} >
-                                            <td><Image src={`http://127.0.0.1:8000/api/images/services/${curUser.image_path}`  || imageURL } style={{border:"none", borderRadius:"50%",height:"40px" }} alt="Image"/></td>
+                                            <td><Image src={`http://127.0.0.1:8000/storage/images/services/${curUser.image_path}`  || imageURL } style={{border:"none", borderRadius:"50%",height:"40px" }} alt="Image"/></td>
                                             <td>{curUser.name}</td>
                                             <td>{curUser.description}</td>
                                             <td>{curUser.price}</td>
@@ -128,14 +170,25 @@ const Service = ({changed,setChanged,service,setService}) => {
                                         </tr>
                                     )
                                 })
-                            }
+                            ) : (
+                                <tr>
+                                    <td colSpan="6" className="text-center py-4">
+                                        Keine Dienstleistungen verfügbar
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
-            </Table>    
+                    </Table>
+                )}
+                </>
+            )}
             </Container>
             <AddService show={show} setShow={setShow} changed={changed} setChanged={setChanged} service={service} index = {index} update={update} 
                         setUpdate={setUpdate}/>
              <div className="d-flex justify-content-center">
-                    <ClientTablePagination  info={info} call={handlePagination} page={page} setPage={setPage} totalPages={totalPages}/> 
+                {info && info.data && info.data.length > 0 && (
+                    <ClientTablePagination info={info} call={handlePagination} page={page} setPage={setPage} totalPages={totalPages}/> 
+                )}
              </div>            
         </React.Fragment>
     )

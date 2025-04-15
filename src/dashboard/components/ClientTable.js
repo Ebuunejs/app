@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react";
 import { Button } from "react-bootstrap";
 import Table from 'react-bootstrap/Table';
+import AddClient from "../components/AddClient";
 import ClientTablePagination from '../components/ClientTablePagination';
 import axios from "axios";
 
@@ -13,9 +14,10 @@ import { useNavigate } from "react-router-dom";
 import config from '../config';
 // Verwendung der backendUrl
 const BASE_URL = config.backendUrl;
+const token=localStorage.getItem('user-token');
 
-const ClientTable = () => {
-    const navigate = useNavigate();
+const ClientTable = ({show, setShow,update,setUpdate,title,setTitle,index,setIndex}) => {
+    //const navigate = useNavigate();
     //const BASE_URL = "http://4pixels.ch/friseur/api"; 
     const [users, setUsers] = useState([]);
     const [info, setInfo] = useState(null)
@@ -24,7 +26,13 @@ const ClientTable = () => {
 
     const fetchUsers = async (url) => {
         try {
-            const response = await axios.get(url);
+            const response = await axios.get(url,{
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+            //console.log("response ",response)
             if (response.status === 200) {
                 setInfo(response.data);
                 setTotalPages(response.data.last_page);
@@ -34,18 +42,20 @@ const ClientTable = () => {
 
                     for (let i = 0; i < response.data.data.length; i++) {
                         const userData = response.data.data[i];
+                        //console.log("USerData: ",userData)
                         const index = userData['addresses_id'];
     
+                        
                         if (index != null) {
-                            const response2 = await axios.get(`${BASE_URL}/addresses/${index}`);
+                            //const response2 = await axios.get(`${BASE_URL}/addresses/${index}`);
                             const userObject = {
                                 id: userData['id'],
                                 name: userData['name'],
                                 surname: userData['surname'],
-                                country: response2.data['country'],
-                                street: response2.data['street'],
-                                city: response2.data['city'],
-                                plz: response2.data['plz'],
+                                country: userData.address['country'],
+                                street: userData.address['street'],
+                                city: userData.address['city'],
+                                plz: userData.address['plz'],
                                 email: userData['email'],
                                 phone: userData['phone']
                             };
@@ -53,6 +63,7 @@ const ClientTable = () => {
                         }
                     }
                     setUsers(clientArray);
+                    //setUpdate(!update);
                     console.log("Array: ", clientArray," page ", page);
                 }
             }
@@ -60,22 +71,27 @@ const ClientTable = () => {
             console.error(e);
         }
     };
-    
 
-    
     const deleteCustomer = async (index)=>{
         try {
+            setIndex(index);
             if(window.confirm("Wollen Sie sicher den Kunden löschen")){
-                const API_URL =  `${BASE_URL}/users/${index}`;
-                const response = await axios.delete(API_URL);
+                const API_URL =  `${BASE_URL}/client/${index}`;
+            
+                const response = await axios.delete(API_URL,{
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
                 console.log(response)
                 if (response.status === 200) {
                     //setData(response);
                     console.log("jetzt löschen");
                 }
-                fetchUsers(BASE_URL);
+                fetchUsers(`${BASE_URL}/client?page=${page}`);
                 //navigate('/kunden');
                 console.log("jetzt update");
+                setIndex(null);
             }         
         } catch (e) {
             console.error(e)
@@ -84,18 +100,23 @@ const ClientTable = () => {
 
     const updateUser = async (index)=>{
         try {
-            navigate('/updateUser', { state: { id: index, status: "update"} });
+            setIndex(index);
+            setUpdate(!update);
+            setTitle("Kunde bearbeiten");
+            setShow(!show);
+            console.log("update Client: ",index)
+            //navigate('/updateUser', { state: { id: index, status: "update"} });
         } catch (e) {
             console.error(e)
         }
     }
 
     useEffect(() => {
-        fetchUsers(`${BASE_URL}/users?page=${page}`);
-    }, [page])
+        fetchUsers(`${BASE_URL}/client?page=${page}`);
+    }, [page, update])
     
     function handlePagination(){
-        fetchUsers(`${BASE_URL}/users?page=${page}`);
+        fetchUsers(`${BASE_URL}/client?page=${page}`);
     }
 
     return <>
@@ -140,10 +161,11 @@ const ClientTable = () => {
         }
         </tbody>
     </Table>
+     
         <div className="d-flex justify-content-center">
             <ClientTablePagination  info={info} call={handlePagination} page={page} setPage={setPage} totalPages={totalPages}/> 
         </div>
-    
+
     </>
 }
 export default ClientTable;

@@ -1,15 +1,20 @@
-import React from "react";
+import React,{useEffect} from "react";
 import {Button, Container, Nav, Navbar, NavDropdown} from 'react-bootstrap';
 import { useNavigate } from "react-router-dom";
 const image = require('../images/logo.png');
 
 function PortalNavbar() {
     const navigate = useNavigate();
-    
+    const userName=localStorage.getItem('user-name');
+
     const logout = () => {
         localStorage.clear();
         navigate('/auth/login');
     }
+    
+    useEffect(() => {
+    }, [])
+
     return (
         <Navbar bg="light" expand="lg">
             <Container >
@@ -39,7 +44,7 @@ function PortalNavbar() {
                             <NavDropdown.Item href="company">Firma-Öffnungszeiten</NavDropdown.Item>
                             <NavDropdown.Item href="service">Dienstleistungen</NavDropdown.Item>
                             <NavDropdown.Divider />
-                            <NavDropdown.Item href="#">Einstellungen</NavDropdown.Item>
+                            <NavDropdown.Item href="settings">Einstellungen</NavDropdown.Item>
                         </NavDropdown>
                     </Nav>
                     {/*
@@ -54,6 +59,7 @@ function PortalNavbar() {
                         <Button variant="outline-success">Search</Button>
                     </Form>
                     */}
+                    <h2>{userName}   </h2>
                     <Nav.Link>
                         <Button style={{backgroundColor:"#BD5450",border:"none"}} onClick={logout}>Logout</Button>
                     </Nav.Link>

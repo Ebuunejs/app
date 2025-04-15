@@ -20,19 +20,21 @@ const AddEmployee = ({show, setShow,changed,setChanged,index,update,setUpdate}) 
     const {name, surname,email,phone,password,role,path} = state;
     const [file, setFile] = useState(null);
     const [error, setError] = useState("");
+    const token=localStorage.getItem('user-token');
 
     const addEmployee = async (e) => {
         e.preventDefault();
         try {
             if(update){ // update Employee
                 console.log("update")
-                const response = await axios.post(`${BASE_URL}/employees/${index}`, prepareForm(), {
+                const response = await axios.post(`${BASE_URL}/employee/${index}`, prepareForm(), {
                     headers: {
+                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
                         'Content-Type': 'multipart/form-data',
                     },
                 });  
-                console.log(response)
+                console.log("Response",response)
                 if (response.status === 201) {
                     console.log("update finish")
                     setState(response.data);
@@ -40,8 +42,9 @@ const AddEmployee = ({show, setShow,changed,setChanged,index,update,setUpdate}) 
                 }
                 resetFields();
             }else{ // add new Employee
-                const response = await axios.post(`${BASE_URL}/employees`,prepareForm(),{
+                const response = await axios.post(`${BASE_URL}/employee`,prepareForm(),{
                     headers: {
+                        'Authorization': `Bearer ${token}`,
                       'Content-Type': 'multipart/form-data',
                     },
                   });
@@ -98,8 +101,15 @@ const AddEmployee = ({show, setShow,changed,setChanged,index,update,setUpdate}) 
 
     const updateFields = async(e) =>{
         if(!!index) {
-            const res = await axios.get(`${BASE_URL}/employees/${index}`);
-            setState(res.data);
+            console.log("Update Index: ",index)
+            const response = await axios.get(`${BASE_URL}/employee/${index}`,{
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+              });
+            setState(response.data);
+            console.log("Response Update: ",response.data)
         }
     }
 
@@ -148,7 +158,7 @@ const AddEmployee = ({show, setShow,changed,setChanged,index,update,setUpdate}) 
             <Modal.Body style={{display:"flex", gap:"20px",flexDirection:"column"}}>
             
             <Form.Group as={Col} md="12" style={{display:"flex", gap:"20px"}}>
-                <Form.Control placeholder="Name" type="file"  name="profile_img" id="profile_img" onChange={handlePicInput}/>
+                <Form.Control placeholder="Name" type="file"  name="photo" id="profile_img" onChange={handlePicInput}/>
             </Form.Group>
 
             <Col xs={6} md={4}>
@@ -157,7 +167,7 @@ const AddEmployee = ({show, setShow,changed,setChanged,index,update,setUpdate}) 
             </Col>
 
             <Form.Group as={Col} md="12" style={{display:"flex", gap:"20px"}}>
-                <Form.Control placeholder="Name" type="text" name="name" onChange={handleInputChange} value={name}/>
+                <Form.Control placeholder="Name" name="name" onChange={handleInputChange} value={name}/>
                 <Form.Control placeholder="Vorname" name="surname"  onChange={handleInputChange} value={surname}/>
             </Form.Group>
             

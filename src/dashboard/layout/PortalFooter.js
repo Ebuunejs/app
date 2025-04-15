@@ -5,7 +5,7 @@ const PortalFooter = () => {
         <React.Fragment>
             <footer className="bg-light border-top py-3 fixed-bottom">
                 <Container>
-                    &copy; designed by 4pixels GmbH - 2023
+                    &copy; designed by 4pixels GmbH - 2025
                 </Container>
             </footer>
         </React.Fragment>
