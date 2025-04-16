@@ -27,10 +27,21 @@ const AddEmployee = ({show, setShow,changed,setChanged,index,update,setUpdate}) 
         try {
             if(update){ // update Employee
                 console.log("update")
-                const response = await axios.post(`${BASE_URL}/employee/${index}`, prepareForm(), {
+                
+                // Erstelle ein FormData-Objekt
+                const formData = prepareForm();
+                
+                // Füge ein Flag hinzu, das angibt, ob das Bild aktualisiert werden soll
+                formData.append("should_update_image", file !== null);
+                
+                // Füge ein zusätzliches Flag für den Umgang mit unlink-Berechtigungsproblemen hinzu
+                formData.append("skip_unlink", true);
+                
+                console.log("FormData erstellt, führe API-Aufruf durch...");
+                
+                const response = await axios.post(`${BASE_URL}/employee/${index}`, formData, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
                         'Content-Type': 'multipart/form-data',
                     },
                 });  
@@ -58,18 +69,30 @@ const AddEmployee = ({show, setShow,changed,setChanged,index,update,setUpdate}) 
             setUpdate(!update);
             console.log("Proces over");
         } catch (e) {
-            console.error(e)
+            console.error("Fehler beim Hinzufügen/Aktualisieren des Mitarbeiters:", e);
+            // Zeige einen Fehler an, falls der Server einen zurückgibt
+            if (e.response && e.response.data && e.response.data.message) {
+                setError(e.response.data.message);
+            } else {
+                setError("Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.");
+            }
         }
     }
 
     function prepareForm(){
         const fd = new FormData();
-        fd.append("image", file);
+        // Nur hinzufügen, wenn ein File ausgewählt wurde
+        if (file) {
+            fd.append("image", file);
+        }
         fd.append("name", name);
         fd.append("surname", surname);
         fd.append("email", email);
         fd.append("phone", phone);
-        fd.append("password", password);
+        // Nur Passwort senden, wenn es nicht leer ist
+        if (password && password.trim() !== '') {
+            fd.append("password", password);
+        }
         return fd;
     }
     
