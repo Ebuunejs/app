@@ -203,118 +203,101 @@ const CompleteOrder = () => {
         }
     }
 
-    const handleBookingSubmission = async (clientId) => {
+    const handleBookingSubmission = async (e) => {
+        e.preventDefault();
         try {
-            // Debug: Ausgabe des Barber-Objekts
-            // console.log("Barber-Objekt im Context:", bookingDetails.barber);
-            // console.log("Barber-Objekt lokal:", localBarber);
-            // console.log("BookingDetails vollständig:", bookingDetails);
+            // Extract date and time from the booking context
+            let appointmentDate = bookingDetails.date;
+            let appointmentTime = bookingDetails.time;
             
-            // Verwende entweder steps aus dem Kontext oder localSteps
-            const currentSteps = (steps && Array.isArray(steps) && steps.length > 0) ? steps : localSteps;
+            console.log("Originale Buchungsdetails:", bookingDetails);
             
-            // Variablen für die Buchung
-            let datePart = null;
-            let timePart = null;
-            
-            // Priorität 1: Datum/Zeit aus dem StepsContext
-            const dateStep = currentSteps.find(step => step.title && step.title.includes('Date:'));
-            if (dateStep) {
-                const stepTitle = dateStep.title;
-                datePart = stepTitle.split(" at ")[0].replace("Date: ", "");
-                timePart = extractTime(stepTitle);
-            } 
-            // Priorität 2: Datum aus dem BookingContext
-            else if (bookingDetails && bookingDetails.date) {
-                datePart = bookingDetails.date;
+            // Überprüfe, ob Datum und Zeit vorhanden sind
+            if (!appointmentDate || !appointmentTime) {
+                console.error("Datum oder Zeit fehlen in den Buchungsdetails", bookingDetails);
+                if (bookingDetails.selectedSlot) {
+                    appointmentDate = bookingDetails.selectedSlot.date;
+                    appointmentTime = bookingDetails.selectedSlot.start_time || bookingDetails.selectedSlot.time;
+                }
                 
-                // Verwende die startTime aus dem BookingContext, wenn verfügbar
-                if (bookingDetails.startTime) {
-                    timePart = bookingDetails.startTime;
+                console.log("Fallback zu Buchungsdetails:", { date: appointmentDate, time: appointmentTime });
+            }
+            
+            // Stelle sicher, dass die Zeit im Format HH:MM vorliegt
+            if (appointmentTime) {
+                // Wenn es nur eine Zahl ist (z.B. "20" oder "10")
+                if (!appointmentTime.includes(':')) {
+                    const timeValue = parseInt(appointmentTime, 10);
+                    if (!isNaN(timeValue)) {
+                        console.log("Einfacher Zahlenwert erkannt:", timeValue);
+                        
+                        // Wenn der Wert < 24 ist, interpretiere ihn als Stunde
+                        if (timeValue < 24) {
+                            appointmentTime = `${String(timeValue).padStart(2, '0')}:00`;
+                        } else {
+                            // Für den unwahrscheinlichen Fall, dass der Wert > 24 ist
+                            appointmentTime = `09:${String(timeValue % 60).padStart(2, '0')}`;
+                        }
+                        console.log("Korrigiert zu HH:MM Format:", appointmentTime);
+                    }
                 } else {
-                    timePart = "09:00"; // Standard-Uhrzeit, nur als letzter Fallback
+                    // Stelle sicher, dass das Format korrekt ist (HH:MM)
+                    const [hours, minutes] = appointmentTime.split(':');
+                    appointmentTime = `${String(parseInt(hours, 10)).padStart(2, '0')}:${String(parseInt(minutes, 10)).padStart(2, '0')}`;
                 }
-            } 
-            // Priorität 3: Aktuelles Datum als Fallback
-            else {
-                // console.log('Versuche alternative Buchung ohne Schritte oder BookingContext...');
-                const today = new Date();
-                datePart = today.toISOString().split('T')[0]; // YYYY-MM-DD
-                timePart = '09:00'; // Standardzeit als Fallback
-            }
-
-            // Finde die business_id und employees_id
-            // Für business_id
-            let businessId = 1; // Standardwert
-            if (bookingDetails.business && bookingDetails.business.id) {
-                businessId = bookingDetails.business.id;
-            }
-
-            // Für employees_id - Verwende prioritär Barber aus BookingContext, dann lokalen Barber
-            let employeeId = 2; // Standardwert
-            
-            // Prüfe verschiedene Quellen für die Barber-ID
-            if (bookingDetails.barber && bookingDetails.barber.id) {
-                employeeId = bookingDetails.barber.id;
-                // console.log("Verwende Barber-ID aus BookingContext:", employeeId);
-            } else if (localBarber && localBarber.id) {
-                employeeId = localBarber.id;
-                // console.log("Verwende Barber-ID aus lokalem State:", employeeId);
+            } else {
+                console.error("Keine Zeit für die Buchung gefunden!");
+                return;
             }
             
-            // console.log("Verwendete Business-ID:", businessId);
-            // console.log("Verwendete Mitarbeiter-ID:", employeeId);
-
-            // Aktualisiere das Buchungsobjekt
-            const updatedBooking = {
-                ...booking,
-                businesses_id: businessId,
-                employees_id: employeeId,
-                client_id: clientId,
-                date: datePart,
-                startTime: timePart,
-                total_price: booking.total_price,
-                total_time: booking.total_time
-            };
-
-            // Sammle die Service-IDs für das Backend
-            const serviceIds = selectedServices.map(service => {
-                return { id: service.id };
+            // Erstelle die Liste der Services
+            const updatedResList = selectedServices.map(service => {
+                return {
+                    reservation_id: 0, // wird später vom Server gesetzt
+                    service_id: service.id
+                };
             });
-
-            // Füge die Daten für Timeslots hinzu
-            const timeslotsData = {
-                date: datePart, // Stellt sicher, dass das Datum für Timeslots korrekt übermittelt wird
-                time: timePart
+            
+            // Create booking data object
+            const bookingData = {
+                businesses_id: bookingDetails.business?.id || 1,
+                employees_id: bookingDetails.barber?.id || 2,
+                client_id: e.target.client_id.value,
+                date: appointmentDate,
+                startTime: appointmentTime, // Verwende die korrigierte Startzeit
+                reservation_status: 'pending'
             };
-
-            // console.log("Sende Buchung:", updatedBooking);
-            // console.log("Mit Services:", serviceIds);
-
+            
+            console.log("Endgültige Buchungsdaten:", bookingData);
+            
+            // Create the payload
             const payload = {
-                booking: updatedBooking,
-                updatedResList: serviceIds,
-                timeslot: timeslotsData, // Neue Eigenschaft für Timeslot-Daten
-                date: datePart, // Datum direkt im Hauptobjekt
-                time: timePart // Zeit direkt im Hauptobjekt
+                booking: bookingData,
+                updatedResList: updatedResList,
+                timeslot: {
+                    date: appointmentDate,
+                    time: appointmentTime
+                },
+                date: appointmentDate,
+                time: appointmentTime
             };
+            
+            console.log("Sende Payload zum Server:", payload);
 
-            const response = await axios.post(`${BASE_URL}/addBooking`, payload, {
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-
-            // Prüfe den Antwortstatus
-            if (response.status !== 200) {
-                throw new Error('Buchung konnte nicht erstellt werden');
+            // Send to server
+            const response = await axios.post(`${BASE_URL}/addBooking`, payload);
+            
+            console.log('Antwort vom Server:', response.data);
+            
+            // Update states based on response
+            if (response.data.success) {
+                console.log('Buchung erfolgreich abgeschlossen!');
+                navigate('/booking-confirmation');
             }
         } catch (error) {
-            console.error('Booking error:', error);
-            setError('Fehler bei der Buchung. Bitte versuchen Sie es später erneut.');
-            throw error;
+            console.error('Fehler beim Abschließen der Buchung:', error);
         }
-    }
+    };
 
     const handleGuestSubmit = async (event) => {
         event.preventDefault();

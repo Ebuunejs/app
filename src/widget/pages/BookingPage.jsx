@@ -260,7 +260,18 @@ function BookingPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [selectedSlot, setSelectedSlot] = useState(bookingDetails.selectedSlot);
-  const [selectedDate, setSelectedDate] = useState(null);
+    const [selectedDate, setSelectedDate] = useState(null);
+    
+    // Funktion zum Aktualisieren des Reservierungsstatus
+    const updateReservationStatus = (status) => {
+        if (setBookingDetails) {
+            setBookingDetails(prev => ({
+                ...prev,
+                reservation_status: status
+            }));
+            console.log(`Reservierungsstatus aktualisiert auf: ${status}`);
+        }
+    };
     
     // Service berechnung direkt aus dem BookingContext
     const services = bookingDetails.services || [];
@@ -306,6 +317,27 @@ function BookingPage() {
             const savedDate = new Date(bookingDetails.date);
             setSelectedDate(savedDate);
             fetchAvailableSlots(bookingDetails.date, true); // Alle Slots anzeigen
+        } else if (!bookingDetails.date && !availableSlots.length) {
+            // Wenn kein Datum ausgewählt ist, das aktuelle Datum verwenden
+            const today = new Date();
+            setSelectedDate(today);
+            
+            // Format the date as YYYY-MM-DD
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const formattedDate = `${year}-${month}-${day}`;
+            
+            // Speichere das Datum im BookingContext
+            if (setBookingDetails) {
+                setBookingDetails(prev => ({
+                    ...prev,
+                    date: formattedDate
+                }));
+            }
+            
+            // Lade Slots für heute
+            fetchAvailableSlots(formattedDate, true);
         }
     }, [business, bookingDetails, services, navigate, isBusinessActive, availableSlots.length]);
     
@@ -336,6 +368,50 @@ function BookingPage() {
         setError(null);
         setAvailableSlots([]);
         
+        // Füge diese Debug-Funktion hinzu, um die empfangenen Daten zu prüfen
+        const logSlotData = (slots) => {
+            console.log('Empfangene Slots:', slots);
+        };
+        
+        // Deduplizierungsfunktion für Slots
+        const deduplicateSlots = (slots) => {
+            console.log("Dedupliziere Slots, vorher:", slots.length);
+            
+            // Gruppiere Slots nach start_time
+            const timeMap = {};
+            
+            slots.forEach(slot => {
+                if (slot.start_time) {
+                    const timeKey = slot.start_time;
+                    
+                    // Wenn dieser Zeitpunkt bereits existiert
+                    if (timeMap[timeKey]) {
+                        // Wenn der vorhandene Slot gebucht ist, aber der neue nicht, behalte den gebuchten
+                        if (timeMap[timeKey].status === 'booked' && slot.status !== 'booked') {
+                            // Behalte den bereits vorhandenen
+                        } 
+                        // Wenn der neue gebucht ist, aber der vorhandene nicht, ersetze ihn
+                        else if (timeMap[timeKey].status !== 'booked' && slot.status === 'booked') {
+                            timeMap[timeKey] = slot;
+                        }
+                        // Sonst behalte den mit der niedrigeren ID (wahrscheinlich älter)
+                        else if (Number(slot.id) < Number(timeMap[timeKey].id)) {
+                            timeMap[timeKey] = slot;
+                        }
+                    } else {
+                        // Speichere den ersten Slot für diese Zeit
+                        timeMap[timeKey] = slot;
+                    }
+                }
+            });
+            
+            // Konvertiere zurück in Array
+            const deduplicated = Object.values(timeMap);
+            console.log("Nach Deduplizierung:", deduplicated.length);
+            
+            return deduplicated;
+        };
+        
         try {
             const barberId = bookingDetails.barber?.id;
             const businessId = bookingDetails.business?.id || business?.id;
@@ -349,6 +425,25 @@ function BookingPage() {
             
             if (!duration) {
                 throw new Error('Dienstleistungsdauer fehlt');
+            }
+            
+            // Prüfe, ob das Datum in der Zukunft liegt
+            const selectedDate = new Date(date);
+            selectedDate.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const isDateInFuture = selectedDate >= today;
+            
+            // Für zukünftige Daten in mehr als 7 Tagen, generiere immer Standard-Slots
+            const oneWeekFromNow = new Date(today);
+            oneWeekFromNow.setDate(today.getDate() + 7);
+            
+            if (isDateInFuture && selectedDate > oneWeekFromNow) {
+                console.log('Datum liegt mehr als 7 Tage in der Zukunft, generiere Standard-Slots');
+                const defaultSlots = generateDefaultTimeSlots(date);
+                setAvailableSlots(defaultSlots);
+                setSelectedSlot(null);
+                return;
             }
             
             // Vollständige URL mit allen erforderlichen Parametern
@@ -373,28 +468,25 @@ function BookingPage() {
                 // Direkte Anfrage mit URL-Parametern statt Header-Parametern
                 const response = await axios.get(apiUrl, { headers });
                 
-                // Extrahiere Slots aus der API-Antwort, unabhängig von der Struktur
+                // Überarbeite die Verarbeitung der Daten, die von der API kommen
                 let slots = [];
                 
-                // Spezifisch für die Struktur: response.data.data.data
+                // Füge Debug-Informationen hinzu
+                console.log('API-Antwort:', response.data);
+                
                 if (response.data && response.data.data && Array.isArray(response.data.data.data)) {
                     slots = response.data.data.data;
                 } else if (Array.isArray(response.data)) {
-                    // API gibt direkt ein Array zurück
                     slots = response.data;
                 } else if (response.data && typeof response.data === 'object') {
                     // API gibt ein Objekt zurück
                     if (Array.isArray(response.data.data)) {
-                        // Standard Laravel Resource-Format: { data: [...] }
                         slots = response.data.data;
                     } else if (response.data.timeslots && Array.isArray(response.data.timeslots)) {
-                        // Format: { timeslots: [...] }
                         slots = response.data.timeslots;
                     } else if (response.data.slots && Array.isArray(response.data.slots)) {
-                        // Format: { slots: [...] }
                         slots = response.data.slots;
                     } else if (response.data.available && Array.isArray(response.data.available)) {
-                        // Format: { available: [...] }
                         slots = response.data.available;
                     } else {
                         // Durchsuche das Objekt nach dem ersten Array
@@ -407,66 +499,367 @@ function BookingPage() {
                     }
                 }
                 
-                // Stelle sicher, dass jeder Slot die erforderlichen Felder hat
-                if (slots.length > 0) {
-                    // Filtere die Slots, um nur die des ausgewählten Datums anzuzeigen
-                    const filteredSlots = slots.filter(slot => slot.date === date);
+                // Log für Debug-Zwecke
+                logSlotData(slots);
+                
+                // Filtere die Slots, um nur die des ausgewählten Datums anzuzeigen
+                const filteredSlots = slots.filter(slot => slot.date === date);
+                console.log('Gefilterte Slots für das ausgewählte Datum:', filteredSlots);
+                
+                // Prüfen, ob die vorhandenen Slots gültige Zeitangaben haben
+                const hasValidTimeSlots = filteredSlots.length > 0 && filteredSlots.some(slot => {
+                    const startTimeValid = slot.time || slot.start_time;
                     
-                    const processedSlots = filteredSlots.map(slot => {
-                        // Ermittle Ende-Zeit basierend auf der Start-Zeit (mit 30 Minuten Unterschied)
-                        let endTime = '';
-                        if (slot.time) {
-                            const [hours, minutes] = slot.time.split(':').map(Number);
+                    // Detaillierte Debug-Ausgaben für jeden Slot
+                    console.log("Slot Zeit-Details:", {
+                        slotId: slot.id,
+                        timeValue: startTimeValid, 
+                        type: typeof startTimeValid,
+                        hasColon: startTimeValid ? startTimeValid.toString().includes(':') : false
+                    });
+                    
+                    // Verbesserte Validierung, die auch Zahlen und andere Formate akzeptiert
+                    if (typeof startTimeValid === 'number') {
+                        // Wenn es eine Zahl ist, als Stunde interpretieren
+                        console.log("Zeit als Zahl erkannt:", startTimeValid);
+                        return true;
+                    }
+                    
+                    if (!startTimeValid) return false;
+                    
+                    // Wenn es ein String ist, prüfen ob HH:MM Format oder konvertierbar
+                    const timeStr = startTimeValid.toString();
+                    
+                    // Entweder bereits HH:MM Format
+                    if (timeStr.includes(':') && 
+                        timeStr.split(':').length === 2 &&
+                        !isNaN(Number(timeStr.split(':')[0])) &&
+                        !isNaN(Number(timeStr.split(':')[1]))) {
+                        return true;
+                    }
+                    
+                    // Oder eine einfache Zahl, die als Stunde interpretiert werden kann
+                    if (!isNaN(Number(timeStr)) && Number(timeStr) >= 0 && Number(timeStr) < 24) {
+                        console.log("Zeit als String-Zahl erkannt:", timeStr);
+                        return true;
+                    }
+                    
+                    return false;
+                });
+                
+                console.log('Hat gültige Zeitslots:', hasValidTimeSlots);
+                console.log('Gefilterte Slots Rohdaten:', JSON.stringify(filteredSlots, null, 2));
+                
+                // Wenn keine Slots vorhanden sind oder keine gültigen Zeitslots und das Datum in der Zukunft liegt,
+                // generiere immer Standard-Slots für diesen Tag
+                if (isDateInFuture) {
+                    // Generiere immer Standard-Zeitslots für das Datum in der Zukunft
+                    console.log('Generiere Standard-Zeitslots für das Datum:', date);
+                    const defaultSlots = generateDefaultTimeSlots(date);
+                    
+                    // Wenn es Slots aus der API gibt, kombiniere sie mit den Standard-Slots
+                    if (filteredSlots.length > 0) {
+                        console.log('Kombiniere API-Slots mit Standard-Slots für zukünftiges Datum');
+                        
+                        // Verarbeite die API-Slots
+                        const normalizedApiSlots = filteredSlots.map(slot => {
+                            // Validiere und normalisiere die Zeit
+                            const slotTime = slot.time || slot.start_time || '';
+                            let normalizedTime = '';
+                            
+                            console.log("Verarbeite API-Slot:", slot);
+                            
+                            if (typeof slotTime === 'number' || !isNaN(Number(slotTime))) {
+                                // Konvertiere Zahl zu HH:MM
+                                const timeValue = Number(slotTime);
+                                if (timeValue >= 0 && timeValue < 24) {
+                                    normalizedTime = `${String(timeValue).padStart(2, '0')}:00`;
+                                }
+                            } else if (typeof slotTime === 'string' && slotTime.includes(':')) {
+                                // Bereits im HH:MM Format
+                                const [hours, minutes] = slotTime.split(':').map(Number);
+                                if (!isNaN(hours) && !isNaN(minutes) && hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
+                                    normalizedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                                }
+                            }
+                            
+                            if (!normalizedTime) {
+                                console.log(`Ungültiges Zeitformat für Slot ${slot.id}, wird übersprungen`);
+                                return null;
+                            }
+                            
+                            // Berechne die Endzeit (30 Minuten später)
+                            const [hours, minutes] = normalizedTime.split(':').map(Number);
                             let endHours = hours;
                             let endMinutes = minutes + 30;
                             
                             if (endMinutes >= 60) {
-                                endHours += 1;
+                                endHours = (endHours + 1) % 24;
                                 endMinutes -= 60;
                             }
                             
-                            endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+                            const normalizedEndTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+                            
+                            // Status bestimmen - WICHTIG: Die Reihenfolge der Prüfungen definiert die Priorität!
+                            let status = 'available';
+                            let is_selectable = true;
+                            
+                            // 1. HÖCHSTE PRIORITÄT: Überprüfe die Booking-ID
+                            // Wenn eine Buchungs-ID vorhanden ist, ist der Slot IMMER gebucht, unabhängig vom Status
+                            if (slot.bookings_id !== null && slot.bookings_id !== undefined) {
+                                console.log(`Slot ${slot.id} hat eine Buchungs-ID: ${slot.bookings_id} -> immer als gebucht markieren`);
+                                status = 'booked';
+                                is_selectable = false;
+                            } 
+                            // 2. Überprüfe den Typ (Termin, Krank, usw.)
+                            else if (slot.type || slot.types) {
+                                const typeValue = slot.type || slot.types;
+                                console.log(`Slot ${slot.id} hat einen Typ: ${typeValue}`);
+                                if (typeValue && ['termin', 'krank', 'ferien', 'pause'].includes(typeValue.toLowerCase())) {
+                                    status = 'blocked';
+                                    is_selectable = false;
+                                }
+                            }
+                            // 3. NIEDRIGSTE PRIORITÄT: Wenn im Status explizit markiert und keine höhere Priorität greift
+                            else if (slot.status) {
+                                console.log(`Slot ${slot.id} hat einen Status: ${slot.status}`);
+                                status = slot.status.toLowerCase();
+                                is_selectable = status === 'available';
+                            }
+                            
+                            // Debug-Ausgabe für alle Slots
+                            console.log(`Slot nach Verarbeitung: ${normalizedTime}, Status: ${status}, Wählbar: ${is_selectable}`);
+                            
+                            // Erstelle den normalisierten Slot
+                            return {
+                                id: slot.id || `api-${Math.random().toString(36).substr(2, 9)}`,
+                                date: slot.date || date,
+                                start_time: normalizedTime,
+                                end_time: normalizedEndTime,
+                                status: status,
+                                is_selectable: is_selectable,
+                                display: `${normalizedTime}-${normalizedEndTime}`,
+                                barber_id: slot.barber_id || barberId,
+                                bookings_id: slot.bookings_id,
+                                all_day: slot.all_day || false,
+                                type: slot.type || slot.types || null,
+                                source: 'api'
+                            };
+                        }).filter(slot => slot !== null);
+                        
+                        // Erstelle eine Map der belegten Zeiten
+                        const bookedTimesMap = {};
+                        normalizedApiSlots.forEach(slot => {
+                            console.log(`Speichere Slot in Map: ${slot.start_time}, Status: ${slot.status}`);
+                            bookedTimesMap[slot.start_time] = slot;
+                        });
+                        
+                        // Aktualisiere die Standard-Slots basierend auf den API-Daten
+                        const updatedDefaultSlots = defaultSlots.map(slot => {
+                            // Wenn dieser Zeitslot in den gebuchten/blockierten Zeiten ist
+                            if (bookedTimesMap[slot.start_time]) {
+                                console.log(`Slot ${slot.start_time} ist in der Map mit Status: ${bookedTimesMap[slot.start_time].status}`);
+                                return bookedTimesMap[slot.start_time];
+                            }
+                            
+                            // Ansonsten ist es ein verfügbarer Standard-Slot
+                            return {
+                                ...slot,
+                                source: 'default',
+                                status: 'available',
+                                is_selectable: true
+                            };
+                        });
+                        
+                        console.log("Aktualisierte Slots:", updatedDefaultSlots.length);
+                        setAvailableSlots(updatedDefaultSlots);
+                        setSelectedSlot(null);
+                    } else {
+                        // Keine API-Slots, verwende einfach die Standard-Slots
+                        setAvailableSlots(defaultSlots);
+                        setSelectedSlot(null);
+                    }
+                } else if (filteredSlots.length > 0 && hasValidTimeSlots) {
+                    // Wenn Slots gefunden wurden und gültige Zeiten haben, verarbeite diese
+                    
+                    // Verbesserte Fehlerbehandlung bei der Verarbeitung der Slots
+                    const processedSlots = filteredSlots.map(slot => {
+                        console.log('Verarbeite Slot:', slot);
+                        
+                        // Sicherstellungsfunktion für valide Zeitangaben
+                        const validateTimeFormat = (timeStr) => {
+                            if (!timeStr) return '';
+                            
+                            // Wenn es eine Zahl ist (als Number oder String)
+                            if (typeof timeStr === 'number' || (!isNaN(Number(timeStr)) && !timeStr.includes(':'))) {
+                                const timeValue = Number(timeStr);
+                                // Interpretiere als Stunde, wenn < 24
+                                if (timeValue >= 0 && timeValue < 24) {
+                                    return `${String(timeValue).padStart(2, '0')}:00`;
+                                }
+                                // Falls > 24, interpretiere als Minuten seit Mitternacht
+                                else if (timeValue >= 0) {
+                                    const hours = Math.floor(timeValue / 60);
+                                    const mins = timeValue % 60;
+                                    return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+                                }
+                            }
+                            
+                            // Wenn bereits im HH:MM Format
+                            if (typeof timeStr === 'string' && timeStr.includes(':')) {
+                                const timeParts = timeStr.split(':');
+                                if (timeParts.length !== 2) return '';
+                                
+                                const hours = parseInt(timeParts[0], 10);
+                                const minutes = parseInt(timeParts[1], 10);
+                                
+                                if (isNaN(hours) || isNaN(minutes)) return '';
+                                if (hours < 0 || hours > 23 || minutes < 0 || minutes >= 60) return '';
+                                
+                                return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                            }
+                            
+                            return '';
+                        };
+                        
+                        // Validierte Start- und Endzeiten
+                        const validStartTime = validateTimeFormat(slot.time || slot.start_time);
+                        
+                        console.log(`Zeit nach Validierung: "${slot.time || slot.start_time}" -> "${validStartTime}"`);
+                        
+                        let validEndTime = validateTimeFormat(slot.end_time);
+                        
+                        // Berechne Endzeit nur, wenn eine gültige Startzeit vorhanden ist
+                        if (validStartTime && !validEndTime) {
+                            try {
+                                const [hours, minutes] = validStartTime.split(':').map(Number);
+                                let endHours = hours;
+                                let endMinutes = minutes + 30;
+                                
+                                if (endMinutes >= 60) {
+                                    endHours += 1;
+                                    endMinutes -= 60;
+                                }
+                                
+                                if (endHours < 24) { // Stelle sicher, dass die Stunde gültig ist
+                                    validEndTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+                                }
+                            } catch (e) {
+                                console.error('Fehler bei der Berechnung der Endzeit:', e);
+                                validEndTime = '';
+                            }
                         }
+                        
+                        // Prüfe, ob es gebuchte Slots für dieses Datum gibt
+                        const hasBookedSlots = filteredSlots.some(slot => 
+                            slot.bookings_id !== null || 
+                            slot.status === 'booked' || 
+                            (slot.type && ['termin'].includes(slot.type.toLowerCase()))
+                        );
                         
                         // Bestimme detaillierten Status basierend auf allen verfügbaren Informationen
                         let status = 'available';
+                        let is_selectable = true;
                         
-                        // Wenn bookings_id vorhanden ist, ist der Slot gebucht
-                        if (slot.bookings_id !== null) {
-                            status = 'booked';
-                        }
-                        
-                        // Wenn ein expliziter Status in der API-Antwort vorhanden ist, verwende diesen
-                        if (slot.status) {
-                            status = slot.status.toLowerCase();
-                        }
-                        
-                        // Prüfe, ob der Slot in der Vergangenheit liegt
-                        const currentDate = new Date();
-                        const slotDate = new Date(`${slot.date}T${slot.time || slot.start_time}`);
-                        const isPast = slotDate < currentDate;
-                        
-                        if (isPast) {
-                            status = 'past';
+                        // Wenn das Datum in der Zukunft liegt und es keine gebuchten Slots gibt,
+                        // setze alle Slots auf verfügbar
+                        if (isDateInFuture && !hasBookedSlots) {
+                            status = 'available';
+                            is_selectable = true;
+                        } else {
+                            // Standardlogik für die Statusbestimmung
+                            
+                            // Wenn bookings_id vorhanden ist, ist der Slot gebucht
+                            if (slot.bookings_id !== null) {
+                                status = 'booked';
+                                is_selectable = false;
+                            }
+                            
+                            // Wenn ein expliziter Status in der API-Antwort vorhanden ist, verwende diesen
+                            if (slot.status) {
+                                status = slot.status.toLowerCase();
+                                is_selectable = status === 'available';
+                            }
+                            
+                            // Prüfe, ob der Slot in der Vergangenheit liegt
+                            const currentDate = new Date();
+                            const slotDate = new Date(`${slot.date}T${validStartTime || slot.time || slot.start_time}`);
+                            const isPast = slotDate < currentDate;
+                            
+                            if (isPast) {
+                                status = 'past';
+                                is_selectable = false;
+                            }
+                            
+                            // Prüfe, ob der Typ "pause", "krank", "termin" oder "ferien" ist
+                            if (slot.type && ['pause', 'krank', 'termin', 'ferien'].includes(slot.type.toLowerCase())) {
+                                status = 'blocked';
+                                is_selectable = false;
+                            }
                         }
                         
                         // Erstelle ein standardisiertes Slot-Objekt mit sicheren Fallback-Werten
                         const processedSlot = {
                             id: slot.id || `slot-${Math.random().toString(36).substr(2, 9)}`,
                             date: slot.date || date,
-                            start_time: slot.time || slot.start_time || '',
-                            end_time: endTime || slot.end_time || '',
+                            start_time: validStartTime || '',
+                            end_time: validEndTime || '',
                             status: status,
                             barber_id: slot.barber_id || barberId,
                             bookings_id: slot.bookings_id,
-                            all_day: slot.all_day || false
+                            all_day: slot.all_day || false,
+                            is_selectable: is_selectable,
+                            type: slot.type || null
                         };
                         
+                        // Zusätzliche Formatierungsprüfung für falsch formatierte Zeiteinträge (nur Minuten)
+                        if (!processedSlot.start_time && slot.time) {
+                            // Prüfen, ob es sich nur um eine Zahl handelt (Minuten ohne Stunden)
+                            const timeValue = parseInt(slot.time, 10);
+                            if (!isNaN(timeValue) && timeValue >= 0 && timeValue < 60) {
+                                console.log('Erkannt: Nur Minuten-Wert in der Zeit:', timeValue);
+                                // Nehme an, dass es sich um einen Stundenwert von 0-23 handelt, Standard: 9 Uhr
+                                const defaultHour = timeValue >= 24 ? 9 : timeValue;
+                                const minutes = timeValue >= 24 ? timeValue % 60 : 0;
+                                processedSlot.start_time = `${String(defaultHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                                
+                                // Berechne die Endzeit (30 Minuten später)
+                                let endHour = defaultHour;
+                                let endMinutes = minutes + 30;
+                                
+                                if (endMinutes >= 60) {
+                                    endHour += 1;
+                                    endMinutes -= 60;
+                                }
+                                
+                                processedSlot.end_time = `${String(endHour).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+                                console.log('Korrigierter Zeit-Wert:', processedSlot.start_time, '-', processedSlot.end_time);
+                            }
+                        }
+                        
                         // Generiere eine leserliche Anzeige für die UI
-                        processedSlot.display = 
-                            (processedSlot.start_time && processedSlot.end_time) 
-                                ? `${processedSlot.start_time}-${processedSlot.end_time}`
-                                : slot.display || processedSlot.start_time || '';
+                        // Prüfe erst, ob start_time und end_time gültige Werte haben
+                        if (processedSlot.start_time && processedSlot.end_time) {
+                            // Validiere die Zeitformate, um NaN-Werte zu vermeiden
+                            const startTimeParts = processedSlot.start_time.split(':');
+                            const endTimeParts = processedSlot.end_time.split(':');
+                            
+                            // Prüfe, ob die Zeitteile gültige Zahlen sind
+                            if (startTimeParts.length === 2 && 
+                                !isNaN(Number(startTimeParts[0])) && 
+                                !isNaN(Number(startTimeParts[1])) &&
+                                endTimeParts.length === 2 && 
+                                !isNaN(Number(endTimeParts[0])) && 
+                                !isNaN(Number(endTimeParts[1]))) {
+                                
+                                processedSlot.display = `${processedSlot.start_time}-${processedSlot.end_time}`;
+                            } else {
+                                // Fallback für ungültige Zeitformate
+                                processedSlot.display = slot.display || 'Ungültige Zeit';
+                            }
+                        } else {
+                            processedSlot.display = slot.display || processedSlot.start_time || 'Ungültige Zeit';
+                        }
                         
                         // Übernehme alle anderen Felder vom originalen Slot
                         return {
@@ -475,9 +868,12 @@ function BookingPage() {
                         };
                     });
                     
-                    setAvailableSlots(processedSlots);
-                    setSelectedSlot(null); // Zurücksetzen der aktuellen Auswahl
+                    // Dedupliziere Slots mit gleichen Zeiten
+                    const uniqueSlots = deduplicateSlots(processedSlots);
+                    setAvailableSlots(uniqueSlots);
+                    setSelectedSlot(null);
                 } else {
+                    // Wenn keine Slots gefunden wurden und das Datum nicht in der Zukunft liegt
                     setAvailableSlots([]);
                 }
             } catch (apiError) {
@@ -535,6 +931,11 @@ function BookingPage() {
                 const endHour = minute === 30 ? `${hour + 1}`.padStart(2, '0') : startHour;
                 const endMinute = minute === 30 ? '00' : '30';
                 
+                // Stelle sicher, dass die Zeiten korrekt formatiert sind
+                const startTime = `${startHour}:${startMinute}`;
+                const endTime = `${endHour}:${endMinute}`;
+                const displayTime = `${startTime}-${endTime}`;
+                
                 // Bestimme zufällig den Status des Slots für Demo-Zwecke
                 // Damit werden verschiedene Status-Typen generiert, nicht nur 'available'
                 const statuses = ['available', 'booked', 'blocked', 'tentative', 'past'];
@@ -543,15 +944,55 @@ function BookingPage() {
                 slots.push({
                     id: `${slotDate}-${startHour}${startMinute}`,
                     date: slotDate,
-                    start_time: `${startHour}:${startMinute}`,
-                    end_time: `${endHour}:${endMinute}`,
+                    start_time: startTime,
+                    end_time: endTime,
                     status: randomStatus,
                     is_selectable: randomStatus === 'available',
-                    display: `${startHour}:${startMinute}-${endHour}:${endMinute}`,
+                    display: displayTime,
                     bookings_id: randomStatus === 'booked' ? Math.floor(Math.random() * 1000) : null
                 });
             }
         }
+        return slots;
+    };
+    
+    // Hilfsfunktion zum Generieren von Standard-Zeitslots für einen Tag
+    const generateDefaultTimeSlots = (date) => {
+        const slots = [];
+        
+        console.log('Generiere Standard-Slots für Datum:', date);
+        
+        // Generiere Zeitslots von 9:00 bis 17:00 Uhr in 30-Minuten-Intervallen
+        for (let hour = 9; hour < 17; hour++) {
+            for (let minute = 0; minute < 60; minute += 30) {
+                const startHour = `${hour}`.padStart(2, '0');
+                const startMinute = `${minute}`.padStart(2, '0');
+                const endHour = minute === 30 ? `${hour + 1}`.padStart(2, '0') : startHour;
+                const endMinute = minute === 30 ? '00' : '30';
+                
+                // Stelle sicher, dass die Zeiten korrekt formatiert sind
+                const startTime = `${startHour}:${startMinute}`;
+                const endTime = `${endHour}:${endMinute}`;
+                const displayTime = `${startTime}-${endTime}`;
+                
+                // Erstelle eine eindeutige ID für jeden Slot
+                const slotId = `default-${date}-${startHour}${startMinute}`;
+                
+                slots.push({
+                    id: slotId,
+                    date: date,
+                    start_time: startTime,
+                    end_time: endTime,
+                    status: 'available',
+                    is_selectable: true,
+                    display: displayTime,
+                    bookings_id: null,
+                    barber_id: bookingDetails.barber?.id
+                });
+            }
+        }
+        
+        console.log('Generierte Standard-Slots:', slots);
         return slots;
     };
     
@@ -560,26 +1001,80 @@ function BookingPage() {
         
         // Extract date and time from the slot object
         const date = slot.date;
-        const startTime = slot.start_time;
+        
+        // Stelle sicher, dass die Zeit im Format HH:MM vorliegt
+        let startTime = slot.start_time;
+        
+        // Debug-Ausgabe
+        console.log("Ursprüngliche Slot-Daten:", slot);
+        
+        // Validiere und korrigiere das Zeitformat
+        if (startTime) {
+            // Wenn es nur eine Zahl ist (z.B. "20" oder "10")
+            if (!startTime.includes(':')) {
+                const timeValue = parseInt(startTime, 10);
+                if (!isNaN(timeValue)) {
+                    console.log("Einfacher Zahlenwert erkannt:", timeValue);
+                    
+                    // Wenn der Wert < 24 ist, interpretiere ihn als Stunde
+                    if (timeValue < 24) {
+                        startTime = `${String(timeValue).padStart(2, '0')}:00`;
+                    } else {
+                        // Für den unwahrscheinlichen Fall, dass der Wert > 24 ist
+                        startTime = `09:${String(timeValue % 60).padStart(2, '0')}`;
+                    }
+                    console.log("Korrigiert zu HH:MM Format:", startTime);
+                }
+            } else {
+                // Stelle sicher, dass das Format korrekt ist (HH:MM)
+                const [hours, minutes] = startTime.split(':');
+                startTime = `${String(parseInt(hours, 10)).padStart(2, '0')}:${String(parseInt(minutes, 10)).padStart(2, '0')}`;
+            }
+        } else if (slot.time) {
+            // Fallback, wenn start_time nicht existiert, aber time verfügbar ist
+            startTime = slot.time;
+            
+            // Auch hier gleiche Prüfungen durchführen
+            if (!startTime.includes(':')) {
+                const timeValue = parseInt(startTime, 10);
+                if (!isNaN(timeValue)) {
+                    console.log("Zeit aus 'time' korrigiert:", timeValue);
+                    
+                    if (timeValue < 24) {
+                        startTime = `${String(timeValue).padStart(2, '0')}:00`;
+                    } else {
+                        startTime = `09:${String(timeValue % 60).padStart(2, '0')}`;
+                    }
+                }
+            } else {
+                const [hours, minutes] = startTime.split(':');
+                startTime = `${String(parseInt(hours, 10)).padStart(2, '0')}:${String(parseInt(minutes, 10)).padStart(2, '0')}`;
+            }
+        }
+        
+        console.log("Ausgewählter Slot:", slot);
+        console.log("Korrigierte Startzeit:", startTime);
         
         // Save to SalonContext - Verwende setAppointment
         if (setAppointment) {
             setAppointment({
                 date: date,
-                time: startTime
+                time: startTime // Verwende die korrigierte Startzeit
             });
         }
         
-        // Save to BookingContext - now with selectedSlot
+        // Save to BookingContext with the corrected time format
         if (setBookingDetails) {
-            setBookingDetails((prev) => ({
+            setBookingDetails(prev => ({
                 ...prev,
                 date: date,
-                time: startTime,
-                selectedSlot: slot,
-                reservation_status: 'pending'
+                time: startTime,  // Verwende die korrigierte Startzeit
+                selectedSlot: slot
             }));
         }
+        
+        // Update Context daten für den nächsten Schritt
+        updateReservationStatus('pending');
     };
     
     const handleProceedToCustomerInfo = () => {
@@ -834,7 +1329,7 @@ function BookingPage() {
                                                     const isPast = slotDate < currentDate;
                                                     
                                                     // Vereinfachte Status-Variablen - nur prüfen ob verfügbar oder nicht
-                                                    const isAvailable = slot.status === 'available' && !isPast;
+                                                    const isAvailable = isSelectable && !isPast;
                                                     
                                                     // Vereinfachte Stile - nur zwei Varianten: verfügbar (grün) oder nicht verfügbar (rot)
                                                     let slotStyle = {
@@ -856,6 +1351,24 @@ function BookingPage() {
                                                             badgeText = "Gebucht";
                                                         } else if (slot.status === 'blocked') {
                                                             badgeText = "Blockiert";
+                                                            
+                                                            // Spezifische Anzeige für verschiedene Typen
+                                                            if (slot.type) {
+                                                                switch(slot.type.toLowerCase()) {
+                                                                    case 'pause':
+                                                                        badgeText = "Pause";
+                                                                        break;
+                                                                    case 'krank':
+                                                                        badgeText = "Krank";
+                                                                        break;
+                                                                    case 'termin':
+                                                                        badgeText = "Termin";
+                                                                        break;
+                                                                    case 'ferien':
+                                                                        badgeText = "Ferien";
+                                                                        break;
+                                                                }
+                                                            }
                                                         } else if (slot.status === 'tentative') {
                                                             badgeText = "Reserviert";
                                                             badgeVariant = "warning";
@@ -898,7 +1411,7 @@ function BookingPage() {
                                             </Row>
                                         ) : (
                                             <Alert variant="info">
-                                                {availableSlots.length === 0 && !loading ? 
+                                                {!selectedDate ? 
                                                     'Bitte wählen Sie ein Datum aus, um verfügbare Zeiten zu sehen.' : 
                                                     'Für diesen Tag sind keine Termine verfügbar. Bitte wählen Sie ein anderes Datum.'
                                                 }

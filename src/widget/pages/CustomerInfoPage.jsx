@@ -255,7 +255,7 @@ function CustomerInfoPage() {
                 payload,
                 { headers }
             );
-            
+            console.log('Buchung Antwort:', response.data);
             if (response.data && response.status === 200) {
                 setSuccess(true);
                 
