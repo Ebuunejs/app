@@ -167,11 +167,11 @@ function CustomerInfoPage() {
         setError(null);
         
         try {
-            // Unternehmen-ID für Debug-Zwecke ausgeben
+            // Step 1: Login-Anfrage - Authentifizierung
             const companyId = String(bookingDetails.business?.company_id || business?.company_id || "7");
             console.log('Verwende company_id für Login:', companyId);
             
-            // Benutzer über die /auth/login API-Route authentifizieren
+            // Login-Anfrage ausführen
             const authResponse = await axios.post(
                 `${BASE_URL}/auth/login`,
                 {
@@ -196,16 +196,20 @@ function CustomerInfoPage() {
                 return;
             }
             
-            // Benutzerinformationen aus der Antwort extrahieren
+            // Step 2: Benutzerinformationen und Token extrahieren
             const user = authResponse.data.user || {};
             const token = authResponse.data.token || authResponse.data.access_token;
             
-            // Token im localStorage speichern für zukünftige Anfragen
-            if (token) {
-                localStorage.setItem('auth_token', token);
+            if (!token) {
+                setError('Authentifizierungsfehler: Kein Token erhalten.');
+                setLoading(false);
+                return;
             }
             
-            // Update reservation status to "pending"
+            // Token im localStorage speichern für zukünftige Anfragen
+            localStorage.setItem('auth_token', token);
+            
+            // Update reservation status
             updateReservationStatus('pending');
             
             // Kundeninformationen aus der Antwort erstellen
@@ -217,7 +221,7 @@ function CustomerInfoPage() {
                 notes: ""
             };
             
-            // Save customer info to BookingContext
+            // Speichere Kundeninformationen im BookingContext
             if (setBookingDetails) {
                 setBookingDetails((prev) => ({
                     ...prev,
@@ -225,47 +229,109 @@ function CustomerInfoPage() {
                 }));
             }
             
-            // Sende die Daten im erwarteten Format an die API
-            // Füge den Auth-Token zum Header hinzu
-            const headers = {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            };
+            // Step 3: Berechne die erforderlichen Zeitslots
+            const totalDurationMinutes = bookingDetails.totalDuration || totalDuration;
+            const requiredSlots = Math.ceil(totalDurationMinutes / 30);
+            console.log(`Erforderliche Slots für ${totalDurationMinutes} Minuten: ${requiredSlots}`);
             
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }            
-
-             // Erstelle das Booking-Objekt im Format, das die API erwartet
-             const bookingData = {
+            // Berechne die Zeiten für jeden Slot
+            const slotTimes = [];
+            // Extrahiere die Startzeit
+            const startTime = bookingDetails.time;
+            console.log("Startzeit:", startTime);
+            
+            let [hours, minutes] = startTime.split(':').map(Number);
+            
+            for (let i = 0; i < requiredSlots; i++) {
+                // Aktuelle Zeit als Slot hinzufügen
+                const slotTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                slotTimes.push(slotTime);
+                
+                // Für den nächsten Slot: 30 Minuten hinzufügen
+                minutes += 30;
+                if (minutes >= 60) {
+                    hours += 1;
+                    minutes -= 60;
+                }
+            }
+            
+            console.log("Berechnete Slot-Zeiten:", slotTimes);
+            
+            // Step 4: Erstelle eine einzige Buchung mit allen Zeitslots
+            const totalPrice = services.reduce((sum, service) => sum + parseFloat(service.price || 0), 0);
+            
+            // Erstelle das Booking-Objekt mit der Gesamtdauer
+            const bookingData = {
                 businesses_id: bookingDetails.business?.id || business?.id,
                 employees_id: bookingDetails.barber?.id,
-                client_id: user.id, // Benutzer-ID aus der Antwort
+                client_id: user.id,
                 date: bookingDetails.date,
-                startTime: bookingDetails.time, //extractTime(stepTitle), // bookingDetails.time,
+                startTime: bookingDetails.time, // Startzeit des ersten Slots
+                end_time: requiredSlots > 1 ? slotTimes[requiredSlots - 1] : "", // Endzeit des letzten Slots
+                total_time: totalDurationMinutes
             };
+            
+            // Erstelle einen Service-Eintrag für jeden Slot
+            const slotServices = [];
+            const timeslots = [];
 
+            for (let i = 0; i < requiredSlots; i++) {
+                // Service für jeden Slot
+                slotServices.push({
+                    id: services[0].id,
+                    name: i === 0 ? `Kombinierte Dienstleistungen (${services.length})` : `Slot ${i+1}/${requiredSlots}`,
+                    price: i === 0 ? totalPrice : 0, // Nur der erste Slot erhält den Gesamtpreis
+                    duration: 30,
+                    time: slotTimes[i] // Zeit für jeden Service
+                });
+                
+                // Timeslot für jeden Slot
+                timeslots.push({
+                    date: bookingDetails.date,
+                    time: slotTimes[i],
+                    barber_id: bookingDetails.barber?.id,
+                    slot_index: i
+                });
+            }
+
+            console.log("Berechnete Zeitslots:", timeslots);
+            console.log("Berechnete Serviceslots:", slotServices);
+
+            // Payload für einen einzigen API-Aufruf mit allen Informationen
             const payload = {
                 booking: bookingData,
-                updatedResList: services, // Array mit IDs
+                updatedResList: slotServices, // Services für jeden Slot
+                timeslots: timeslots, // Alle Zeitslots mit korrekten Zeiten
+                multipleSlots: requiredSlots > 1,
+                totalSlots: requiredSlots,
+                createSingleBooking: true // Hinweis für das Backend, nur eine Buchung zu erstellen
             };
-
+            
+            console.log("Sende Buchungsanfrage mit allen Slots:", payload);
+            
+            // Standardheader mit Authentifizierungstoken
+            const authHeaders = {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+            
+            // Ein einziger API-Aufruf mit allen Slots
             const response = await axios.post(
                 `${BASE_URL}/addBooking`,
                 payload,
-                { headers }
+                { headers: authHeaders }
             );
+            
             console.log('Buchung Antwort:', response.data);
-            if (response.data && response.status === 200) {
+            
+            if (response.data) {
                 setSuccess(true);
-                
-                // Update reservation status to "confirmed" after successful booking
                 updateReservationStatus('confirmed');
                 
-                // Generate a booking ID if the API response doesn't include one
+                // Booking-ID für die Bestätigungsseite
                 const bookingId = response.data.id || Math.floor(Math.random() * 1000) + 1;
                 
-                // Save booking response to context
                 if (setBookingDetails) {
                     setBookingDetails((prev) => ({
                         ...prev,
@@ -273,17 +339,16 @@ function CustomerInfoPage() {
                     }));
                 }
                 
-                // Navigate to confirmation page
+                // Zur Bestätigungsseite navigieren
                 navigate('/confirmation');
             } else {
-                setError('Es gab ein Problem bei der Buchungsanfrage. Bitte versuchen Sie es später erneut.');
+                setError('Die Buchung konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.');
             }
         } catch (error) {
-            console.error('Fehler bei der Anmeldung:', error);
+            console.error('Fehler beim Login oder der Buchung:', error);
             
-            // Detailliertere Fehlermeldung basierend auf der API-Antwort
+            // Detaillierte Fehlermeldung je nach Fehlertyp
             if (error.response) {
-                // Der Server hat mit einem Statuscode außerhalb des Bereichs 2xx geantwortet
                 if (error.response.status === 401) {
                     setError('Ungültige Anmeldedaten. Bitte überprüfen Sie Ihre E-Mail und Ihr Passwort.');
                 } else if (error.response.data && error.response.data.message) {
@@ -292,10 +357,8 @@ function CustomerInfoPage() {
                     setError(`Fehler bei der Anmeldung (${error.response.status}). Bitte versuchen Sie es später erneut.`);
                 }
             } else if (error.request) {
-                // Die Anfrage wurde gestellt, aber keine Antwort erhalten
                 setError('Keine Antwort vom Server erhalten. Bitte überprüfen Sie Ihre Internetverbindung.');
             } else {
-                // Etwas ist beim Einrichten der Anfrage schief gelaufen
                 setError('Die Anmeldung konnte nicht abgeschlossen werden. Bitte überprüfen Sie Ihre Daten und versuchen Sie es erneut.');
             }
         } finally {
@@ -337,7 +400,7 @@ function CustomerInfoPage() {
             console.log('Business ID:', bookingDetails.business?.id || business?.id);
             console.log('Barber ID:', bookingDetails.barber?.id);
 
-            // Vorbereitung der Daten für die API
+            // Step 1: Registrierung durchführen
             const registrationData = {
                 name: formData.firstName,
                 surname: formData.lastName,
@@ -349,14 +412,13 @@ function CustomerInfoPage() {
                 photo: 'default.jpg',
                 addresses_id: '1',
                 role: 'client',
-                businesses_id: String(bookingDetails.business?.id || business?.id), // Explizit als String konvertieren
-                employees_id: String(bookingDetails.barber?.id) // Explizit als String konvertieren
+                businesses_id: String(bookingDetails.business?.id || business?.id),
+                employees_id: String(bookingDetails.barber?.id)
             };
 
-            // Debug-Logging für die Registrierungsdaten
             console.log('Registrierungsdaten:', registrationData);
 
-            // API-Aufruf
+            // API-Aufruf zur Registrierung
             const response = await axios.post(`${BASE_URL}/auth/register`, registrationData, {
                 headers: {
                     'Content-Type': 'application/json',
@@ -369,35 +431,123 @@ function CustomerInfoPage() {
             if (response.data.status) {
                 setSuccess(true);
                 
-                // Nach erfolgreicher Registrierung direkt die Buchung abschließen
+                // Step 2: Benutzerinformationen und Token extrahieren
+                const user = response.data.user || {};
+                const token = response.data.token || response.data.access_token;
+                
+                if (!token && user.id) {
+                    console.warn('Kein Token in der Registrierungsantwort, aber Benutzer-ID vorhanden.');
+                }
+                
+                // Token speichern, falls vorhanden
+                if (token) {
+                    localStorage.setItem('auth_token', token);
+                }
+                
+                // Step 3: Berechne die erforderlichen Zeitslots
+                const totalDurationMinutes = bookingDetails.totalDuration || totalDuration;
+                const requiredSlots = Math.ceil(totalDurationMinutes / 30);
+                console.log(`Erforderliche Slots für ${totalDurationMinutes} Minuten: ${requiredSlots}`);
+                
+                // Berechne die Zeiten für jeden Slot
+                const slotTimes = [];
+                // Extrahiere die Startzeit
+                const startTime = bookingDetails.time;
+                console.log("Startzeit (Registrierung):", startTime);
+                
+                let [hours, minutes] = startTime.split(':').map(Number);
+                
+                for (let i = 0; i < requiredSlots; i++) {
+                    // Aktuelle Zeit als Slot hinzufügen
+                    const slotTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                    slotTimes.push(slotTime);
+                    
+                    // Für den nächsten Slot: 30 Minuten hinzufügen
+                    minutes += 30;
+                    if (minutes >= 60) {
+                        hours += 1;
+                        minutes -= 60;
+                    }
+                }
+                
+                console.log("Berechnete Slot-Zeiten (Registrierung):", slotTimes);
+                
+                // Step 4: Erstelle eine einzige Buchung mit allen Zeitslots
+                const totalPrice = services.reduce((sum, service) => sum + parseFloat(service.price || 0), 0);
+                
+                // Erstelle das Booking-Objekt mit der Gesamtdauer
                 const bookingData = {
                     businesses_id: bookingDetails.business?.id || business?.id,
                     employees_id: bookingDetails.barber?.id,
-                    client_id: response.data.user.id,
+                    client_id: user.id,
                     date: bookingDetails.date,
-                    startTime: bookingDetails.time
+                    startTime: bookingDetails.time, // Startzeit des ersten Slots
+                    end_time: requiredSlots > 1 ? slotTimes[requiredSlots - 1] : "", // Endzeit des letzten Slots
+                    total_time: totalDurationMinutes
                 };
+                
+                // Erstelle einen Service-Eintrag für jeden Slot
+                const slotServices = [];
+                const timeslots = [];
 
-                const bookingPayload = {
+                for (let i = 0; i < requiredSlots; i++) {
+                    // Service für jeden Slot
+                    slotServices.push({
+                        id: services[0].id,
+                        name: i === 0 ? `Kombinierte Dienstleistungen (${services.length})` : `Slot ${i+1}/${requiredSlots}`,
+                        price: i === 0 ? totalPrice : 0, // Nur der erste Slot erhält den Gesamtpreis
+                        duration: 30,
+                        time: slotTimes[i] // Zeit für jeden Service
+                    });
+                    
+                    // Timeslot für jeden Slot
+                    timeslots.push({
+                        date: bookingDetails.date,
+                        time: slotTimes[i],
+                        barber_id: bookingDetails.barberId,
+                        slot_index: i
+                    });
+                }
+
+                console.log("Berechnete Zeitslots (Registrierung):", timeslots);
+                console.log("Berechnete Serviceslots (Registrierung):", slotServices);
+
+                // Payload für einen einzigen API-Aufruf mit allen Informationen
+                const payload = {
                     booking: bookingData,
-                    updatedResList: services.map(service => ({ id: service.id }))
+                    updatedResList: slotServices, // Services für jeden Slot
+                    timeslots: timeslots, // Alle Zeitslots mit korrekten Zeiten
+                    multipleSlots: requiredSlots > 1,
+                    totalSlots: requiredSlots,
+                    createSingleBooking: true // Hinweis für das Backend, nur eine Buchung zu erstellen
                 };
-
-                console.log('Buchungspayload:', bookingPayload);
-
-                // Buchung abschließen
+                
+                console.log("Sende Buchungsanfrage mit allen Slots (Registrierung):", payload);
+                
+                // Standardheader mit Authentifizierungstoken
+                const authHeaders = token ? {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                } : {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                };
+                
+                // Ein einziger API-Aufruf mit allen Slots
                 const bookingResponse = await axios.post(
                     `${BASE_URL}/addBooking`,
-                    bookingPayload
+                    payload,
+                    { headers: authHeaders }
                 );
-
-                console.log('Buchung Antwort:', bookingResponse.data);
-
-                if (bookingResponse.data && bookingResponse.status === 200) {
+                
+                console.log('Buchung Antwort (Registrierung):', bookingResponse.data);
+                
+                if (bookingResponse.data) {
                     updateReservationStatus('confirmed');
                     navigate('/confirmation');
                 } else {
-                    throw new Error('Buchung konnte nicht abgeschlossen werden');
+                    setError('Die Buchung konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.');
                 }
             } else {
                 throw new Error(response.data.message || 'Registrierung fehlgeschlagen');

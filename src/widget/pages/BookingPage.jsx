@@ -260,7 +260,7 @@ function BookingPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [selectedSlot, setSelectedSlot] = useState(bookingDetails.selectedSlot);
-    const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
     
     // Funktion zum Aktualisieren des Reservierungsstatus
     const updateReservationStatus = (status) => {
@@ -488,7 +488,7 @@ function BookingPage() {
                         slots = response.data.slots;
                     } else if (response.data.available && Array.isArray(response.data.available)) {
                         slots = response.data.available;
-                    } else {
+    } else {
                         // Durchsuche das Objekt nach dem ersten Array
                         for (const key in response.data) {
                             if (Array.isArray(response.data[key])) {
@@ -1055,11 +1055,124 @@ function BookingPage() {
         console.log("Ausgewählter Slot:", slot);
         console.log("Korrigierte Startzeit:", startTime);
         
+        // Berechne die benötigte Anzahl an Slots basierend auf der Gesamtdauer
+        // Ein Standard-Slot ist 30 Minuten
+        const standardSlotDuration = 30; // in Minuten
+        const totalServiceDuration = calculatedTotalDuration || 0;
+
+        // Präzisere Berechnung der benötigten Slots
+        // Bei einer 50-minütigen Dienstleistung benötigen wir genau 2 Slots (nicht 3)
+        // Wir verwenden Math.ceil mit einer kleinen Anpassung, um genau die richtige Anzahl von Slots zu erhalten
+        let requiredSlots;
+
+        if (totalServiceDuration % standardSlotDuration === 0) {
+            // Für Dienstleistungen, die ein exaktes Vielfaches von 30 Minuten sind (30, 60, 90, 120 usw.)
+            requiredSlots = totalServiceDuration / standardSlotDuration;
+        } else {
+            // Für Dienstleistungen wie 50, 80, 110 Minuten usw.
+            // Wir berechnen, wie viele volle Slots benötigt werden, und fügen dann ggf. einen Teilslot hinzu
+            const fullSlots = Math.floor(totalServiceDuration / standardSlotDuration);
+            const remainingMinutes = totalServiceDuration % standardSlotDuration;
+            
+            // Wenn die verbleibende Zeit mehr als 0 Minuten beträgt, fügen wir einen weiteren Slot hinzu
+            requiredSlots = fullSlots + (remainingMinutes > 0 ? 1 : 0);
+        }
+
+        // Stellen wir sicher, dass wir mindestens einen Slot haben
+        if (requiredSlots < 1) requiredSlots = 1;
+
+        console.log(`Gesamtdauer der Dienstleistungen: ${totalServiceDuration} Minuten, benötigte Slots: ${requiredSlots}`);
+        
+        // Finde die aufeinanderfolgenden Slots
+        let selectedSlots = [];
+        
+        if (requiredSlots > 1) {
+            // Finde den Index des ausgewählten Slots in der Liste
+            const selectedIndex = availableSlots.findIndex(s => 
+                s.start_time === slot.start_time && s.date === slot.date
+            );
+            
+            if (selectedIndex !== -1) {
+                // Prüfe, ob genügend aufeinanderfolgende Slots verfügbar sind
+                let hasEnoughSlots = true;
+                
+                for (let i = 0; i < requiredSlots; i++) {
+                    const slotIndex = selectedIndex + i;
+                    
+                    // Prüfe, ob der Slot existiert und verfügbar ist
+                    if (slotIndex >= availableSlots.length || 
+                        availableSlots[slotIndex].status !== 'available' || 
+                        !availableSlots[slotIndex].is_selectable) {
+                        hasEnoughSlots = false;
+                        break;
+                    }
+                    
+                    // Prüfe, ob der Slot zeitlich aufeinanderfolgend ist (nur für Slots nach dem ersten)
+                    if (i > 0) {
+                        const prevSlot = availableSlots[slotIndex - 1];
+                        const currSlot = availableSlots[slotIndex];
+                        
+                        // Extrahiere Stunden und Minuten
+                        const [prevHours, prevMinutes] = prevSlot.end_time.split(':').map(Number);
+                        const [currHours, currMinutes] = currSlot.start_time.split(':').map(Number);
+                        
+                        // Konvertiere in Minuten für einfacheren Vergleich
+                        const prevTimeInMinutes = prevHours * 60 + prevMinutes;
+                        const currTimeInMinutes = currHours * 60 + currMinutes;
+                        
+                        // Slot muss direkt nach dem vorherigen folgen
+                        if (currTimeInMinutes !== prevTimeInMinutes) {
+                            hasEnoughSlots = false;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!hasEnoughSlots) {
+                    setError(`Für die ausgewählten Dienstleistungen werden ${requiredSlots} aufeinanderfolgende Zeitslots benötigt. Bitte wählen Sie eine andere Startzeit.`);
+                    return;
+                }
+                
+                // Sammle alle benötigten Slots
+                for (let i = 0; i < requiredSlots; i++) {
+                    selectedSlots.push(availableSlots[selectedIndex + i]);
+                }
+            } else {
+                console.error("Ausgewählter Slot nicht in der verfügbaren Liste gefunden");
+                setError("Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.");
+                return;
+            }
+        } else {
+            // Nur ein Slot benötigt
+            selectedSlots = [slot];
+        }
+        
+        // Berechne die Gesamtzeit des Termins
+        const firstSlot = selectedSlots[0];
+        const lastSlot = selectedSlots[selectedSlots.length - 1];
+        
+        // Berechne die Endzeit
+        const [startHours, startMinutes] = startTime.split(':').map(Number);
+        let endHours = startHours;
+        let endMinutes = startMinutes + totalServiceDuration;
+        
+        // Konvertiere Überläufe korrekt
+        while (endMinutes >= 60) {
+            endHours += 1;
+            endMinutes -= 60;
+        }
+        endHours = endHours % 24; // Für den Fall, dass wir über Mitternacht gehen
+        
+        const endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+        console.log(`Startzeit: ${startTime}, Endzeit: ${endTime}, Dauer: ${totalServiceDuration} Minuten`);
+        
         // Save to SalonContext - Verwende setAppointment
         if (setAppointment) {
             setAppointment({
                 date: date,
-                time: startTime // Verwende die korrigierte Startzeit
+                time: startTime, // Verwende die korrigierte Startzeit
+                end_time: endTime,
+                selected_slots: selectedSlots
             });
         }
         
@@ -1069,16 +1182,57 @@ function BookingPage() {
                 ...prev,
                 date: date,
                 time: startTime,  // Verwende die korrigierte Startzeit
-                selectedSlot: slot
+                end_time: endTime,
+                selectedSlot: slot,
+                selectedSlots: selectedSlots,
+                totalDuration: totalServiceDuration
             }));
         }
         
         // Update Context daten für den nächsten Schritt
         updateReservationStatus('pending');
+        
+        // Markiere visuell alle ausgewählten Slots
+        setSelectedSlot({
+            ...slot,
+            selectedSlots: selectedSlots
+        });
     };
     
     const handleProceedToCustomerInfo = () => {
         if (selectedSlot) {
+            // Überprüfe, ob wir mehrere Slots haben
+            const multipleSlots = selectedSlot.selectedSlots && selectedSlot.selectedSlots.length > 1;
+            
+            // Informationen über mehrere Slots ins BookingContext übertragen
+            if (multipleSlots && setBookingDetails) {
+                const firstSlot = selectedSlot.selectedSlots[0];
+                const lastSlot = selectedSlot.selectedSlots[selectedSlot.selectedSlots.length - 1];
+                
+                // Berechnen der Gesamtdauer aus den ausgewählten Slots
+                const totalSlotDuration = calculatedTotalDuration || 0;
+                
+                // Aktualisiere die Booking-Details mit Informationen über mehrere Slots
+                setBookingDetails(prev => ({
+                    ...prev,
+                    date: firstSlot.date,
+                    time: firstSlot.start_time,
+                    end_time: lastSlot.end_time,
+                    total_duration: totalSlotDuration,
+                    selectedSlot: firstSlot,
+                    selectedSlots: selectedSlot.selectedSlots,
+                    requiresMultipleSlots: true,
+                    numberOfSlots: selectedSlot.selectedSlots.length
+                }));
+                
+                console.log("Mehrere Slots zum Speichern vorbereitet:", {
+                    start: firstSlot.start_time,
+                    end: lastSlot.end_time,
+                    date: firstSlot.date,
+                    anzahlSlots: selectedSlot.selectedSlots.length
+                });
+            }
+            
             navigate('/customer-info');
         } else {
             setError('Bitte wählen Sie einen Termin aus.');
@@ -1089,7 +1243,7 @@ function BookingPage() {
     navigate(-1);
   };
 
-    return (
+  return (
         <div className="booking-page">
             <BusinessHeader />
             
@@ -1292,9 +1446,9 @@ function BookingPage() {
                                         </div>
                                         <h3 className="mb-0" style={{fontSize: '1.2rem', fontWeight: 'bold'}}>Datum wählen</h3>
                                     </div>
-                                    <div className="calendar-container">
+              <div className="calendar-container">
                                         <BookingCalendar onDateSelect={handleDateSelect} />
-                                    </div>
+              </div>
                                 </div>
                             </Col>
                             
@@ -1383,7 +1537,12 @@ function BookingPage() {
   return (
                                                         <Col key={index} xs={6} md={4} xl={3} className="mb-2">
                                                             <div 
-                                                                className={`time-slot ${!isAvailable ? 'disabled' : ''} ${selectedSlot && selectedSlot.id === slot.id ? 'selected' : ''}`}
+                                                                className={`time-slot ${!isAvailable ? 'disabled' : ''} ${
+                                                                    selectedSlot && (
+                                                                        selectedSlot.id === slot.id || 
+                                                                        (selectedSlot.selectedSlots && selectedSlot.selectedSlots.some(s => s.id === slot.id))
+                                                                    ) ? 'selected' : ''
+                                                                }`}
                                                                 style={slotStyle}
                                                                 onClick={isAvailable ? () => handleTimeSelect(slot) : undefined}
                                                             >
@@ -1395,16 +1554,29 @@ function BookingPage() {
                                                                     {statusBadge && (
                                                                         <div className="status-badge mt-1">
                                                                             {statusBadge}
-              </div>
-                                                                    )}
-                                                                    
-                                                                    {selectedSlot && selectedSlot.id === slot.id && (
-                                                                        <div className="selected-indicator">
-                                                                            <FaCheck style={{color: '#7DB561'}} />
                 </div>
                                                                     )}
+                                                                    
+                                                                    {selectedSlot && (
+                                                                        selectedSlot.id === slot.id || 
+                                                                        (selectedSlot.selectedSlots && selectedSlot.selectedSlots.some(s => s.id === slot.id))
+                                                                    ) && (
+                                                                        <div className="selected-indicator">
+                                                                            <FaCheck style={{color: '#7DB561'}} />
+                                                                            {selectedSlot.selectedSlots && selectedSlot.selectedSlots.length > 1 && (
+                                                                                <span style={{
+                                                                                    fontSize: '0.7rem',
+                                                                                    marginLeft: '5px',
+                                                                                    color: '#7DB561',
+                                                                                    fontWeight: 'bold'
+                                                                                }}>
+                                                                                    {selectedSlot.selectedSlots.findIndex(s => s.id === slot.id) + 1}/{selectedSlot.selectedSlots.length}
+                                                                                </span>
+                                                                            )}
               </div>
-                                                            </div>
+                                                                    )}
+            </div>
+          </div>
                                                         </Col>
                                                     );
                                                 })}
