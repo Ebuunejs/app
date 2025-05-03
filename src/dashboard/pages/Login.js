@@ -42,7 +42,7 @@ const Login = () => {
         try {
             const response = await axios.post(`${BASE_URL}/auth/verify-company-connection`, {
                 email,
-                company_id: companyId
+                key: companyId
             });
             return response.data;
         } catch (error) {
@@ -71,7 +71,7 @@ const Login = () => {
 
             // Speichere die Informationen über das Unternehmen für die spätere Prüfung
             setValidationInfo({
-                company_id: statusResponse.data.id || companyId,
+                key: statusResponse.data.id || companyId,
                 company_name: statusResponse.data.name || 'Unternehmen'
             });
 
@@ -113,7 +113,7 @@ const Login = () => {
             const response = await axios.post(`${BASE_URL}/auth/login`, {
                 email,
                 password,
-                company_id: companyId,    // Alternative ID
+                key: companyId,    // Alternative ID
             }, {
                 headers: {
                     'Content-Type': 'application/json'
@@ -135,12 +135,12 @@ const Login = () => {
                 // Überprüfe, ob die zurückgegebene Business-ID mit der eingegebenen ID übereinstimmt
                 const businessIdMatches = 
                     String(business.id) === String(companyId) || 
-                    String(business.company_id) === String(companyId);
+                    String(business.key) === String(companyId);
                 
                 // Überprüfe Benutzerfeld für Unternehmenszugehörigkeit
                 const userBelongsToBusiness = 
                     (user.businesses_id && String(user.businesses_id) === String(companyId)) ||
-                    (user.company_id && String(user.company_id) === String(companyId));
+                    (user.key && String(user.key) === String(companyId));
                 
                 if (!businessIdMatches && !userBelongsToBusiness) {
                     setError('Sie haben keine Berechtigung für dieses Unternehmen. Die Benutzer- und Unternehmensdaten stimmen nicht überein.');
@@ -150,7 +150,7 @@ const Login = () => {
                 // Fallback-Prüfung, wenn keine Business-Daten zurückgegeben wurden
                 const userBelongsToBusiness = 
                     (user.businesses_id && String(user.businesses_id) === String(companyId)) ||
-                    (user.company_id && String(user.company_id) === String(companyId)) ;
+                    (user.key && String(user.key) === String(companyId));
                 
                 if (!userBelongsToBusiness) {
                     setError('Benutzer gehört nicht zu diesem Unternehmen. Bitte kontaktieren Sie Ihren Administrator.');

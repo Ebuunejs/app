@@ -68,6 +68,27 @@ const styles = {
   }
 };
 
+// Hilfsfunktion zum Normalisieren der Zeitformate
+function normalizeTimeFormat(timeString) {
+    if (!timeString) return null;
+    
+    // Wenn es bereits im HH:MM Format ist
+    if (timeString.includes(':')) {
+        const [hours, minutes] = timeString.split(':').map(num => parseInt(num, 10));
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
+    
+    // Wenn es eine einfache Zahl ist (z.B. "20" oder "9")
+    const hours = parseInt(timeString, 10);
+    if (!isNaN(hours) && hours >= 0 && hours < 24) {
+        return `${String(hours).padStart(2, '0')}:00`;
+    }
+    
+    // Falls kein gültiges Format erkannt wurde
+    console.warn(`Ungültiges Zeitformat: ${timeString}`);
+    return null;
+}
+
 function CustomerInfoPage() {
     const navigate = useNavigate();
     const { selectedCoiffeur, selectedServices, selectedDate, selectedTime } = useSalonContext();
@@ -151,7 +172,7 @@ function CustomerInfoPage() {
             [name]: value
         });
     };
-    
+       
     const handleLogin = async (e) => {
         e.preventDefault();
         
@@ -168,8 +189,8 @@ function CustomerInfoPage() {
         
         try {
             // Step 1: Login-Anfrage - Authentifizierung
-            const companyId = String(bookingDetails.business?.company_id || business?.company_id || "7");
-            console.log('Verwende company_id für Login:', companyId);
+            const companyId = String(bookingDetails.business?.key || business?.key || "7");
+            console.log('Verwende key für Login:', bookingDetails);
             
             // Login-Anfrage ausführen
             const authResponse = await axios.post(
@@ -177,7 +198,7 @@ function CustomerInfoPage() {
                 {
                     email: loginData.email,
                     password: loginData.password,
-                    company_id: companyId
+                    key: companyId
                 },
                 {
                     headers: {
@@ -236,23 +257,29 @@ function CustomerInfoPage() {
             
             // Berechne die Zeiten für jeden Slot
             const slotTimes = [];
-            // Extrahiere die Startzeit
-            const startTime = bookingDetails.time;
-            console.log("Startzeit:", startTime);
+            // Extrahiere die Startzeit und normalisiere sie
+            let startTime = bookingDetails.time;
+            startTime = normalizeTimeFormat(startTime);
+            console.log("Normalisierte Startzeit:", startTime);
             
-            let [hours, minutes] = startTime.split(':').map(Number);
+            if (!startTime) {
+                throw new Error('Ungültiges Zeitformat für die Buchung');
+            }
+            
+            // Stelle sicher, dass die Startzeit im Format HH:MM ist
+            let [hours, minutes] = startTime.split(':').map(num => parseInt(num, 10));
+            
+            // Log zur Fehlersuche
+            console.log("Startzeit-Komponenten:", { hours, minutes });
             
             for (let i = 0; i < requiredSlots; i++) {
                 // Aktuelle Zeit als Slot hinzufügen
-                const slotTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-                slotTimes.push(slotTime);
+                const currentHours = hours + Math.floor((minutes + (i * 30)) / 60);
+                const currentMinutes = (minutes + (i * 30)) % 60;
                 
-                // Für den nächsten Slot: 30 Minuten hinzufügen
-                minutes += 30;
-                if (minutes >= 60) {
-                    hours += 1;
-                    minutes -= 60;
-                }
+                const slotTime = `${String(currentHours).padStart(2, '0')}:${String(currentMinutes).padStart(2, '0')}`;
+                slotTimes.push(slotTime);
+                console.log(`Slot ${i+1} Zeit: ${slotTime}`);
             }
             
             console.log("Berechnete Slot-Zeiten:", slotTimes);
@@ -266,12 +293,13 @@ function CustomerInfoPage() {
                 employees_id: bookingDetails.barber?.id,
                 client_id: user.id,
                 date: bookingDetails.date,
-                startTime: bookingDetails.time, // Startzeit des ersten Slots
+                startTime: startTime, // Verwende die normalisierte Startzeit
                 end_time: requiredSlots > 1 ? slotTimes[requiredSlots - 1] : "", // Endzeit des letzten Slots
-                total_time: totalDurationMinutes
+                total_time: totalDurationMinutes,
+                total_price: totalPrice
             };
             
-            // Erstelle einen Service-Eintrag für jeden Slot
+            // Erstelle einen Service-Eintrag für jeden Slot und die Timeslots
             const slotServices = [];
             const timeslots = [];
 
@@ -288,7 +316,7 @@ function CustomerInfoPage() {
                 // Timeslot für jeden Slot
                 timeslots.push({
                     date: bookingDetails.date,
-                    time: slotTimes[i],
+                    time: slotTimes[i], // Verwende die korrekte Zeit für diesen Slot
                     barber_id: bookingDetails.barber?.id,
                     slot_index: i
                 });
@@ -410,7 +438,7 @@ function CustomerInfoPage() {
                 password: formData.password,
                 password_confirmation: formData.confirmPassword,
                 photo: 'default.jpg',
-                addresses_id: '1',
+                addresses_id: '',
                 role: 'client',
                 businesses_id: String(bookingDetails.business?.id || business?.id),
                 employees_id: String(bookingDetails.barber?.id)
@@ -451,23 +479,29 @@ function CustomerInfoPage() {
                 
                 // Berechne die Zeiten für jeden Slot
                 const slotTimes = [];
-                // Extrahiere die Startzeit
-                const startTime = bookingDetails.time;
-                console.log("Startzeit (Registrierung):", startTime);
+                // Extrahiere die Startzeit und normalisiere sie
+                let startTime = bookingDetails.time;
+                startTime = normalizeTimeFormat(startTime);
+                console.log("Normalisierte Startzeit (Registrierung):", startTime);
                 
-                let [hours, minutes] = startTime.split(':').map(Number);
+                if (!startTime) {
+                    throw new Error('Ungültiges Zeitformat für die Buchung');
+                }
+                
+                // Stelle sicher, dass die Startzeit im Format HH:MM ist
+                let [hours, minutes] = startTime.split(':').map(num => parseInt(num, 10));
+                
+                // Log zur Fehlersuche
+                console.log("Startzeit-Komponenten (Registrierung):", { hours, minutes });
                 
                 for (let i = 0; i < requiredSlots; i++) {
-                    // Aktuelle Zeit als Slot hinzufügen
-                    const slotTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-                    slotTimes.push(slotTime);
+                    // Aktuelle Zeit als Slot hinzufügen - Berechnung direkt basierend auf der Startzeit
+                    const currentHours = hours + Math.floor((minutes + (i * 30)) / 60);
+                    const currentMinutes = (minutes + (i * 30)) % 60;
                     
-                    // Für den nächsten Slot: 30 Minuten hinzufügen
-                    minutes += 30;
-                    if (minutes >= 60) {
-                        hours += 1;
-                        minutes -= 60;
-                    }
+                    const slotTime = `${String(currentHours).padStart(2, '0')}:${String(currentMinutes).padStart(2, '0')}`;
+                    slotTimes.push(slotTime);
+                    console.log(`Slot ${i+1} Zeit (Registrierung): ${slotTime}`);
                 }
                 
                 console.log("Berechnete Slot-Zeiten (Registrierung):", slotTimes);
@@ -481,9 +515,10 @@ function CustomerInfoPage() {
                     employees_id: bookingDetails.barber?.id,
                     client_id: user.id,
                     date: bookingDetails.date,
-                    startTime: bookingDetails.time, // Startzeit des ersten Slots
+                    startTime: startTime, // Verwende die normalisierte Startzeit
                     end_time: requiredSlots > 1 ? slotTimes[requiredSlots - 1] : "", // Endzeit des letzten Slots
-                    total_time: totalDurationMinutes
+                    total_time: totalDurationMinutes,
+                    total_price: totalPrice
                 };
                 
                 // Erstelle einen Service-Eintrag für jeden Slot
@@ -503,8 +538,8 @@ function CustomerInfoPage() {
                     // Timeslot für jeden Slot
                     timeslots.push({
                         date: bookingDetails.date,
-                        time: slotTimes[i],
-                        barber_id: bookingDetails.barberId,
+                        time: slotTimes[i], // Verwende die korrekte Zeit für diesen Slot
+                        barber_id: bookingDetails.barber?.id,
                         slot_index: i
                     });
                 }

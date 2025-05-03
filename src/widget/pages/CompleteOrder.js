@@ -160,12 +160,12 @@ const CompleteOrder = () => {
         try {
             // Unternehmensdaten hinzufügen
             const businessId = bookingDetails.business?.id || 1;
-            const companyId = bookingDetails.business?.company_id || localStorage.getItem('company-id');
+            const companyId = bookingDetails.business?.key || localStorage.getItem('company-id');
             
             // Aktualisiertes formDataJSON mit allen möglichen IDs für die Backend-Kompatibilität
             const loginPayload = {
                 ...formDataJSON,
-                company_id: companyId,
+                key: companyId,
                 businesses_id: businessId,
             };
 

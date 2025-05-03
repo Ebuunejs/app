@@ -62,9 +62,18 @@ function SalonPage() {
                     // Speichere die Business-Daten im BookingContext
                     // Verwende eine Callback-Form, um Closures zu vermeiden
                     if (bookingContext && bookingContext.setBookingDetails) {
+                        // Stelle sicher, dass businessData das key-Feld anstelle von company_id verwendet
+                        const businessWithKey = { ...businessData };
+                        if (!businessWithKey.key && businessWithKey.company_id) {
+                            businessWithKey.key = businessWithKey.company_id;
+                            delete businessWithKey.company_id;
+                        } else if (!businessWithKey.key) {
+                            businessWithKey.key = companyId;
+                        }
+                        
                         bookingContext.setBookingDetails(prev => ({
                             ...prev,
-                            business: businessData
+                            business: businessWithKey
                         }));
                     }
                     

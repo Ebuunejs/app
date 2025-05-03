@@ -67,7 +67,7 @@ const BusinessHeader = () => {
             />
           )}
           <h2 className="business-name mb-0" style={{ color: textColor }}>
-            <Link to={`/salon/${business.company_id}`} style={{ color: textColor, textDecoration: 'none' }}>
+            <Link to={`/salon/${business.key}`} style={{ color: textColor, textDecoration: 'none' }}>
               {business.name}
             </Link>
           </h2>

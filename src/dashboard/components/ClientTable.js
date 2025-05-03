@@ -15,6 +15,10 @@ import config from '../config';
 // Verwendung der backendUrl
 const BASE_URL = config.backendUrl;
 const token=localStorage.getItem('user-token');
+const user=JSON.parse(localStorage.getItem('user'));
+const userID = localStorage.getItem('user-id');
+const userRole = localStorage.getItem('user-role');
+const businessID = localStorage.getItem('company-id');
 
 const ClientTable = ({show, setShow,update,setUpdate,title,setTitle,index,setIndex}) => {
     //const navigate = useNavigate();
@@ -26,13 +30,21 @@ const ClientTable = ({show, setShow,update,setUpdate,title,setTitle,index,setInd
 
     const fetchUsers = async (url) => {
         try {
+
+            const employeeData = {
+                businesses_id: businessID,
+                employees_id: userID,
+                role: userRole
+            };
+
             const response = await axios.get(url,{
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'multipart/form-data',
                 },
             });
-            //console.log("response ",response)
+
+            //console.log("response ",response.data.data)
             if (response.status === 200) {
                 setInfo(response.data);
                 setTotalPages(response.data.last_page);
@@ -41,30 +53,21 @@ const ClientTable = ({show, setShow,update,setUpdate,title,setTitle,index,setInd
                     const clientArray = [];
 
                     for (let i = 0; i < response.data.data.length; i++) {
-                        const userData = response.data.data[i];
-                        //console.log("USerData: ",userData)
+                        const userData = response.data.data[i];                        //console.log("USerData: ",userData)
                         const index = userData['addresses_id'];
-    
-                        
-                        if (index != null) {
-                            //const response2 = await axios.get(`${BASE_URL}/addresses/${index}`);
-                            const userObject = {
+                        //const response2 = await axios.get(`${BASE_URL}/addresses/${index}`);
+                        const userObject = {
                                 id: userData['id'],
                                 name: userData['name'],
                                 surname: userData['surname'],
-                                country: userData.address['country'],
-                                street: userData.address['street'],
-                                city: userData.address['city'],
-                                plz: userData.address['plz'],
                                 email: userData['email'],
                                 phone: userData['phone']
-                            };
-                            clientArray.push(userObject);
-                        }
+                        };
+                        clientArray.push(userObject);
                     }
                     setUsers(clientArray);
                     //setUpdate(!update);
-                    console.log("Array: ", clientArray," page ", page);
+                    //console.log("Array: ", clientArray," page ", page);
                 }
             }
         } catch (e) {
@@ -126,10 +129,6 @@ const ClientTable = ({show, setShow,update,setUpdate,title,setTitle,index,setInd
                 <th>Id</th>
                 <th>Name</th>
                 <th>Vorname</th>
-                <th>Land</th>
-                <th>Strasse</th>
-                <th>Ort</th>
-                <th>plz</th>
                 <th>email</th>
                 <th>phone</th>
                 <th>Status</th>
@@ -143,10 +142,6 @@ const ClientTable = ({show, setShow,update,setUpdate,title,setTitle,index,setInd
                             <td>{curUser.id}</td>
                             <td>{curUser.name}</td>
                             <td>{curUser.surname}</td>
-                            <td>{curUser.country}</td>
-                            <td>{curUser.street}</td>
-                            <td>{curUser.city}</td>
-                            <td>{curUser.plz}</td>
                             <td>{curUser.email}</td>
                             <td>{curUser.phone}</td>
                             <td> 

@@ -46,7 +46,7 @@ const generateColorForClient = (clientId) => {
         '#3357FF', // Blau
         '#FF33A8', // Pink
         '#33FFF5', // Türkis
-        '#F5FF33', // Gelb
+        '#FF8833', // Dunkles Orange (ersetzt das schwer sichtbare Gelb)
         '#A833FF', // Lila
         '#FF8C33', // Orange
         '#33FFAA', // Mint
@@ -58,6 +58,20 @@ const generateColorForClient = (clientId) => {
     // Nutze die ClientId als Index für die Farbauswahl, mit Modulo um im Array zu bleiben
     if (!clientId) return '#C0C0C0'; // Fallback-Grau für unbekannte Kunden
     return colors[clientId % colors.length];
+};
+
+// Funktion zur Konvertierung des Datums in das richtige Format für den Kalender
+const formatDateTime = (dateString, timeString) => {
+    // Prüfen, ob das Datum bereits in ISO-Format vorliegt
+    if (dateString.includes('T')) {
+        // Extrahiere nur das Datum aus dem ISO-String (YYYY-MM-DD)
+        const datePart = dateString.split('T')[0];
+        // Kombiniere mit der Zeit
+        return moment(`${datePart} ${timeString}`).format('YYYY-MM-DDTHH:mm:ss');
+    } else {
+        // Wenn im einfachen Format, einfach kombinieren
+        return moment(`${dateString} ${timeString}`).format('YYYY-MM-DDTHH:mm:ss');
+    }
 };
 
 function PortalDashboard() {  
@@ -76,6 +90,116 @@ function PortalDashboard() {
     const [clientColors, setClientColors] = useState({});
 
     const getTimeSlots = async () => {
+        const token = localStorage.getItem('user-token');
+        const userID = localStorage.getItem('user-id');
+        const businessID = localStorage.getItem('company-id');
+        const timeSlots = [];
+        const newClientColors = {...clientColors};
+
+        try {
+            // Verwende den employee-timeslots Endpunkt
+            const bookingData = {
+                businesses_id: businessID,
+                employees_id: userID
+            };
+            
+            console.log("BookingData: ", bookingData);
+            
+            const response = await axios.post(`${BASE_URL}/employee-timeslots`, bookingData, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            console.log('Buchungen geladen:', response.data);
+            
+            // Verarbeite die empfangenen Buchungen und formatiere sie für den Kalender
+            for(let i=0; i < response.data.length; i++) {
+                const booking = response.data[i];
+                
+                // Detaillierte Ausgabe der Datum/Zeit-Felder
+                console.log("Booking Datum Felder: ", {
+                    rawDate: booking.date, 
+                    rawTime: booking.startTime,
+                    rawTotalTime: booking.total_time,
+                    type: typeof booking.date
+                });
+                
+                // Verbesserte Datumsverarbeitung mit moment.js
+                let startMoment;
+                
+                // Versuchen, verschiedene Datumsformate zu interpretieren
+                if (booking.date && booking.date.includes('T')) {
+                    // Format: 2025-04-24T00:00:00.000000Z
+                    const datePart = booking.date.split('T')[0]; // Extrahiere nur das Datum
+                    startMoment = moment(`${datePart} ${booking.startTime}`, 'YYYY-MM-DD HH:mm:ss');
+                    console.log("Parsed ISO date:", datePart, "with time:", booking.startTime);
+                } else if (booking.date) {
+                    // Einfaches Datum: 2025-04-24
+                    startMoment = moment(`${booking.date} ${booking.startTime}`, 'YYYY-MM-DD HH:mm:ss');
+                    console.log("Parsed simple date:", booking.date, "with time:", booking.startTime);
+                } else {
+                    console.error("Kein gültiges Datum in booking:", booking);
+                    continue; // Überspringe diesen Eintrag
+                }
+                
+                // Überprüfen der Gültigkeit
+                if (!startMoment.isValid()) {
+                    console.error("Moment konnte Datum nicht parsen:", booking.date, booking.startTime);
+                    continue; // Überspringe diesen Eintrag
+                }
+                
+                // Konvertieren zu JavaScript Date
+                const startDate = startMoment.toDate();
+                const endMoment = moment(startMoment).add(parseInt(booking.total_time) || 60, 'minutes');
+                const endDate = endMoment.toDate();
+                
+                console.log("Parsed Start Date:", startDate);
+                console.log("Parsed End Date:", endDate);
+                console.log("Client vorhanden:", booking.client != null);
+                
+                if (booking.client != null) {
+                    const clientId = booking.client.id;
+                    
+                    // Generiere eine Farbe für diesen Kunden, wenn noch keine vorhanden ist
+                    if (!newClientColors[clientId]) {
+                        newClientColors[clientId] = generateColorForClient(clientId);
+                    }
+                    
+                    timeSlots.push({  
+                        id: booking.id,
+                        title: booking.client.name + " " + booking.client.surname,
+                        start: startDate,
+                        end: endDate,
+                        desc: booking.client.phone || 'Keine Telefonnummer',
+                        resource: booking,  // Speichere die gesamten Termindaten für die Bearbeitung
+                        backgroundColor: newClientColors[clientId], // Farbe basierend auf Kunden-ID
+                        borderColor: newClientColors[clientId]      // Passende Randfarbe
+                    });
+                } else {
+                    timeSlots.push({  
+                        id: booking.id,
+                        title: 'Kein Name',
+                        start: startDate,
+                        end: endDate,
+                        desc: 'Keine Beschreibung',
+                        backgroundColor: '#C0C0C0', // Grau für nicht zugeordnete Termine
+                        borderColor: '#A9A9A9'      // Dunkleres Grau für den Rand
+                    });
+                }
+            }
+            
+            setTimeSlots(timeSlots);
+            setClientColors(newClientColors); // Speichere die aktualisierte Farben-Zuordnung
+            console.log('Formatierte Timeslots:', timeSlots);
+        } catch (error) {
+            console.error('Fehler beim Laden der Buchungen!', error);
+            showNotification('Fehler beim Laden der Termine', 'danger');
+        }
+    }
+
+    const getTimeSlots2 = async () => {
         const token=localStorage.getItem('user-token');
         const userID=localStorage.getItem('user-id');
         const businessID=localStorage.getItem('company-id');
@@ -98,17 +222,51 @@ function PortalDashboard() {
             });
             console.log('Timeslots1:', response.data);
             for(let i=0; i < response.data.length;i++){
-                const date= response.data[i]['date'];
-                const time=response.data[i]['startTime'];
-                let startDate=`${date} ${time}`;
-                startDate= new Date(startDate);
-                let endDate = new Date(new Date(startDate).setMinutes(response.data[i]['total_time']));
-                //console.log("Time: ",startDate)
-                //console.log("EndTime:",endDate)
-                console.log("Client: ",response.data[i].client !=null)
+                const booking = response.data[i];
                 
-                if(response.data[i].client !=null){
-                    const clientId = response.data[i].client.id;
+                // Detaillierte Ausgabe der Datum/Zeit-Felder
+                console.log("Booking Datum Felder: ", {
+                    rawDate: booking.date, 
+                    rawTime: booking.startTime,
+                    rawTotalTime: booking.total_time,
+                    type: typeof booking.date
+                });
+                
+                // Verbesserte Datumsverarbeitung mit moment.js
+                let startMoment;
+                
+                // Versuchen, verschiedene Datumsformate zu interpretieren
+                if (booking.date && booking.date.includes('T')) {
+                    // Format: 2025-04-24T00:00:00.000000Z
+                    const datePart = booking.date.split('T')[0]; // Extrahiere nur das Datum
+                    startMoment = moment(`${datePart} ${booking.startTime}`, 'YYYY-MM-DD HH:mm:ss');
+                    console.log("Parsed ISO date:", datePart, "with time:", booking.startTime);
+                } else if (booking.date) {
+                    // Einfaches Datum: 2025-04-24
+                    startMoment = moment(`${booking.date} ${booking.startTime}`, 'YYYY-MM-DD HH:mm:ss');
+                    console.log("Parsed simple date:", booking.date, "with time:", booking.startTime);
+                } else {
+                    console.error("Kein gültiges Datum in booking:", booking);
+                    continue; // Überspringe diesen Eintrag
+                }
+                
+                // Überprüfen der Gültigkeit
+                if (!startMoment.isValid()) {
+                    console.error("Moment konnte Datum nicht parsen:", booking.date, booking.startTime);
+                    continue; // Überspringe diesen Eintrag
+                }
+                
+                // Konvertieren zu JavaScript Date
+                const startDate = startMoment.toDate();
+                const endMoment = moment(startMoment).add(parseInt(booking.total_time) || 60, 'minutes');
+                const endDate = endMoment.toDate();
+                
+                console.log("Parsed Start Date:", startDate);
+                console.log("Parsed End Date:", endDate);
+                console.log("Client vorhanden:", booking.client != null);
+                
+                if(booking.client !=null){
+                    const clientId = booking.client.id;
                     
                     // Generiere eine Farbe für diesen Kunden, wenn noch keine vorhanden ist
                     if (!newClientColors[clientId]) {
@@ -116,18 +274,18 @@ function PortalDashboard() {
                     }
                     
                     timeSlots[i]={  
-                        id:     response.data[i].id,
-                        title:  response.data[i].client.name + " "+response.data[i].client.surname,
+                        id:     booking.id,
+                        title:  booking.client.name + " "+booking.client.surname,
                         start:  startDate,
                         end:    endDate,
-                        desc:   response.data[i].client.phone,
-                        resource: response.data[i],  // Speichere die gesamten Termindaten für die Bearbeitung
+                        desc:   booking.client.phone,
+                        resource: booking,  // Speichere die gesamten Termindaten für die Bearbeitung
                         backgroundColor: newClientColors[clientId], // Farbe basierend auf Kunden-ID
                         borderColor: newClientColors[clientId]      // Passende Randfarbe
                     }
                 }else{
                     timeSlots[i]={  
-                        id:     response.data[i].id,
+                        id:     booking.id,
                         title:  'No Name',
                         start:  startDate,
                         end:    endDate,
@@ -187,7 +345,11 @@ function PortalDashboard() {
             // Aktualisiere den lokalen State
             const updatedEvents = timeSlot.map(item => {
                 if (item.id === event.id) {
-                    return { ...item, start, end };
+                    return { 
+                        ...item, 
+                        start, // Hier erfolgt die direkte Zuweisung der start/end Date-Objekte 
+                        end
+                    };
                 }
                 return item;
             });
@@ -226,7 +388,11 @@ function PortalDashboard() {
             // Aktualisiere den lokalen State
             const updatedEvents = timeSlot.map(item => {
                 if (item.id === event.id) {
-                    return { ...item, start, end };
+                    return { 
+                        ...item, 
+                        start, // Hier erfolgt die direkte Zuweisung der start/end Date-Objekte
+                        end
+                    };
                 }
                 return item;
             });

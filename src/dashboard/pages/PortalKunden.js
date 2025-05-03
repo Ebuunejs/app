@@ -35,7 +35,7 @@ function PortalKunden() {
     return (
         
             <Container className='py-5'>
-                <h2 class="fs-5">Kunden:</h2>
+                <h2 className="fs-5">Kunden:</h2>
                
                 <div className="d-flex flex-row-reverse">
                     <Button style={{backgroundColor:"#60A8C1",borderRadius:"50%",border:"none"}} onClick={addCustom}><FontAwesomeIcon icon={faPlus} /></Button>

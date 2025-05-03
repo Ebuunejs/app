@@ -450,8 +450,8 @@ function BookingPage() {
             // Wenn showAll=true, rufen wir alle Slots ab, sonst nur verfügbare
             
             const endpoint = showAll ? 'timeslots' : 'timeslots/available';
-            const apiUrl = `${BASE_URL}/${endpoint}?date=${date}&barber_id=${barberId}&business_id=${businessId}&duration=${duration}`;
-            
+            //onst apiUrl = `${BASE_URL}/${endpoint}?date=${date}&barber_id=${barberId}&business_id=${businessId}&duration=${duration}`;
+            const apiUrl = `${BASE_URL}/timeslots`;
             // Standard-Headers ohne die Parameter
             const headers = {
                 'Accept': 'application/json',

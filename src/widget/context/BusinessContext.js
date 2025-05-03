@@ -44,7 +44,7 @@ export const BusinessProvider = ({ children }) => {
           'Content-Type': 'application/json'
         }
       });
-      
+      console.log(response.data);
       // Prüfe, ob die Anfrage erfolgreich war
       if (response.data && response.data.status) {
         const businessData = response.data.data;
@@ -64,6 +64,15 @@ export const BusinessProvider = ({ children }) => {
           // Boolean-Werte bleiben unverändert
           
           console.log("Normalisierter is_active Wert:", businessData.is_active);
+        }
+        
+        // Stelle sicher, dass das key-Feld vorhanden ist
+        if (!businessData.key && businessData.company_id) {
+          businessData.key = businessData.company_id;
+          delete businessData.company_id;
+        } else if (!businessData.key) {
+          // Falls weder key noch company_id vorhanden sind, setze key auf die ID
+          businessData.key = companyId;
         }
         
         // Speichere die Daten im State

@@ -8,35 +8,40 @@ export const useBookingContext = () => useContext(BookingContext);
 
 // Provider-Komponente, die den globalen Zustand verwaltet
 export const BookingProvider = ({ children }) => {
-    // Versuche, gespeicherte Daten aus dem localStorage zu laden
+    // Versuche, gespeicherte Buchungsdetails aus dem localStorage zu laden
     const loadBookingDetails = () => {
-        try {
-            const savedDetails = localStorage.getItem('bookingDetails');
-            return savedDetails ? JSON.parse(savedDetails) : {
-                business: null,         // Business-Objekt mit ID, Name etc.
-                barber: null,           // Barber-Objekt mit ID, Name etc.
-                services: [],           // Array von Service-Objekten
-                date: null,             // Datum im Format YYYY-MM-DD
-                time: null,             // Uhrzeit im Format HH:MM
-                customer: null,         // Kundeninformationen
-                booking_id: null,       // Buchungs-ID nach erfolgreicher Buchung
-                selectedSlot: null,     // Ausgewähltes Zeitfenster
-                reservation_status: 'pending' // Status der Reservation: pending, confirmed, completed, cancelled
-            };
-        } catch (error) {
-            console.error('Fehler beim Laden der Buchungsdetails aus localStorage:', error);
-            return {
-                business: null,
-                barber: null,
-                services: [],
-                date: null,
-                time: null,
-                customer: null,
-                booking_id: null,
-                selectedSlot: null,
-                reservation_status: 'pending'
-            };
+        // Versuche, gespeicherte Buchungsdetails aus dem localStorage zu laden
+        const savedDetails = localStorage.getItem('bookingDetails');
+        
+        if (savedDetails) {
+            try {
+                const parsedDetails = JSON.parse(savedDetails);
+                
+                // Sicherstellen, dass alle erwarteten Felder vorhanden sind
+                // und Ersetzen von company_id durch key in business
+                if (parsedDetails.business && parsedDetails.business.company_id && !parsedDetails.business.key) {
+                    parsedDetails.business.key = parsedDetails.business.company_id;
+                    delete parsedDetails.business.company_id;
+                }
+                
+                return parsedDetails;
+            } catch (error) {
+                console.error('Fehler beim Parsen der gespeicherten Buchungsdetails:', error);
+            }
         }
+        
+        // Standardwerte zurückgeben, wenn keine gespeicherten Details verfügbar sind
+        return {
+            business: null,
+            barber: null,
+            services: [],
+            date: null,
+            time: null,
+            totalDuration: 0,
+            totalPrice: 0,
+            customer: null,
+            reservation_status: 'pending'
+        };
     };
     
     const [bookingDetails, setBookingDetails] = useState(loadBookingDetails);
@@ -82,9 +87,9 @@ export const BookingProvider = ({ children }) => {
             services: [],
             date: null,
             time: null,
+            totalDuration: 0,
+            totalPrice: 0,
             customer: null,
-            booking_id: null,
-            selectedSlot: null,
             reservation_status: 'pending'
         });
         localStorage.removeItem('bookingDetails');
